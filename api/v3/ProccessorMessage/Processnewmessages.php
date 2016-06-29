@@ -692,10 +692,11 @@ AND m.message_date >= '$start_date'";
 );
   */     
   
-  $contact_id = ""; 
-  // If there is no email, do not attempt to find contact based only on first name and last name.
-  	 if( strlen( $msg_email) > 0 ){
-  	 
+  $contact_id = "";
+
+  // If there is no email, do not attempt to find contact based only on first name and last name,
+  // but do match on empty email.
+
   	      $first_name_formatted_for_sql = mysql_real_escape_string(  $msg_first_name); 
   	      $last_name_formatted_for_sql = mysql_real_escape_string(  $msg_last_name); 
   	      $email_formatted_for_sql = mysql_real_escape_string(  $msg_email); 
@@ -703,7 +704,7 @@ AND m.message_date >= '$start_date'";
 		$sql  = "select c.id as contact_id from civicrm_contact c LEFT JOIN civicrm_email e ON c.id = e.contact_id
 			WHERE lower(c.first_name) = lower('$first_name_formatted_for_sql') 
 			AND lower(c.last_name) = lower('$last_name_formatted_for_sql') 
-			AND lower(e.email) = lower('$email_formatted_for_sql')
+			AND ifnull(lower(e.email), '') = lower('$email_formatted_for_sql')
 			AND c.is_deleted <> 1
 			LIMIT 1  ";
 		 $dao  =  & CRM_Core_DAO::executeQuery( $sql,   CRM_Core_DAO::$_nullArray ) ;	
@@ -711,10 +712,9 @@ AND m.message_date >= '$start_date'";
 		 	$contact_id = $dao->contact_id; 
 		 
 		 }
+
 		 $dao->free();
-		 
-	 }
-		 
+
 		 if( strlen($contact_id ) == 0){
 		 	// create a new contact
 		 	
