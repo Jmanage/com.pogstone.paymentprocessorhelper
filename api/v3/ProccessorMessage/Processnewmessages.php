@@ -42,15 +42,11 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
  // }
 }
 
-
-
- function handle_the_messages(){
-   
+function handle_the_messages() {
    	//init();
 
 	$all_message_types_tocheck = array();
-	
-	 
+
 	$ewayemailrecur_type = "eWay_Recurring";
 	
 	$pay_pal_type = "PayPal"; 
@@ -406,24 +402,10 @@ iATS Payments SWIPE
 	
 	
 	handleCancelledSubscriptions(); 
-	
-	
-	
-	 
-	 
-	
 	 return $rec_count; 
-	 
-	 
-		
-	}
-	
-	
+}
+
 	  //  run();
-	   
-				
-	  
-	  
 	    // Test with hard-coded message
 	     // Next 3 values should come from the payment processor message. 
 	     /*
@@ -434,9 +416,7 @@ iATS Payments SWIPE
 		UpdateRecurringContributionSubscription($log_handle, $crm_recur_id , $trxn_id, $trxn_receive_date  ); 
 		*/
 	
-	
-	function handle_messges_with_no_contrib($cur_type){
-	
+function handle_messges_with_no_contrib($cur_type) {
 	$start_date =  '2015-01-15';
 	
 	   if(  $cur_type == "AuthNet" ){
@@ -618,13 +598,9 @@ AND m.message_date >= '$start_date'";
        		
        		
       }
-	
-	
-	}
-	
-	
-	function getFinancialTypeID_forMessage(){
-	
+}
+
+function getFinancialTypeID_forMessage() {
 	   $tmp_name = "Unknown Financial"; 
 	   
 	  // require_once('./FinancialHelper.php'); 
@@ -671,13 +647,9 @@ AND m.message_date >= '$start_date'";
 	}
 	
 	return $tmp_ft_id ; 
-	}
-	
-	
-	
-	
-	
-	function get_contact_from_msg( $msg_first_name , $msg_last_name, $msg_email  ){
+}
+
+function get_contact_from_msg( $msg_first_name , $msg_last_name, $msg_email  ){
 	     
 	     /*
 	     $params = array(
@@ -697,28 +669,29 @@ AND m.message_date >= '$start_date'";
   // If there is no email, do not attempt to find contact based only on first name and last name,
   // but do match on empty email.
 
-  	      $first_name_formatted_for_sql = mysql_real_escape_string(  $msg_first_name); 
-  	      $last_name_formatted_for_sql = mysql_real_escape_string(  $msg_last_name); 
-  	      $email_formatted_for_sql = mysql_real_escape_string(  $msg_email); 
-  	      
-		$sql  = "select c.id as contact_id from civicrm_contact c LEFT JOIN civicrm_email e ON c.id = e.contact_id
-			WHERE lower(c.first_name) = lower('$first_name_formatted_for_sql') 
-			AND lower(c.last_name) = lower('$last_name_formatted_for_sql') 
-			AND ifnull(lower(e.email), '') = lower('$email_formatted_for_sql')
-			AND c.is_deleted <> 1
-			LIMIT 1  ";
-		 $dao  =  & CRM_Core_DAO::executeQuery( $sql,   CRM_Core_DAO::$_nullArray ) ;	
-		 if($dao->fetch()){
-		 	$contact_id = $dao->contact_id; 
-		 
-		 }
+  $first_name_formatted_for_sql = mysql_real_escape_string(  $msg_first_name);
+  $last_name_formatted_for_sql = mysql_real_escape_string(  $msg_last_name);
+  $email_formatted_for_sql = mysql_real_escape_string(  $msg_email);
 
-		 $dao->free();
+  $sql  = "select c.id as contact_id from civicrm_contact c LEFT JOIN civicrm_email e ON c.id = e.contact_id
+      WHERE lower(c.first_name) = lower('$first_name_formatted_for_sql')
+      AND lower(c.last_name) = lower('$last_name_formatted_for_sql')
+      AND ifnull(lower(e.email), '') = lower('$email_formatted_for_sql')
+      AND c.is_deleted <> 1
+      LIMIT 1";
 
-		 if( strlen($contact_id ) == 0){
-		 	// create a new contact
-		 	
-		 	$contact_source = "payment processor transaction";
+  $dao = CRM_Core_DAO::executeQuery($sql);
+
+  if ($dao->fetch()) {
+    $contact_id = $dao->contact_id;
+  }
+
+  $dao->free();
+
+  if (strlen($contact_id) == 0) {
+    // create a new contact
+    $contact_source = "payment processor transaction";
+
 		 	if( strlen( $msg_email) > 0 ){
 			 	$params = array(
 				  'version' => 3,
@@ -744,16 +717,12 @@ AND m.message_date >= '$start_date'";
 			if( count( $tmp_values)  == 1)
 			  $contact_id = $tmp_values[0]['id'];
 			//  print "<br><br>created new contact with id: ".$contact_id ; 
-			} 
-			
-			
-		 
-		 
-	
-	   return $contact_id ; 
-	}
-		
-	function handleCancelledSubscriptions(){
+			}
+
+	   return $contact_id;
+}
+
+function handleCancelledSubscriptions() {
 		// print "<h2>Section: If recurring contribution is cancelled, then update the pending contribution to cancelled status as well. </h2>"; 
 	// If recurring subscription is cancelled, make sure the pending contribution is also cancelled. 
 	$cancelled_status_id = "3"; 
@@ -785,10 +754,9 @@ AND m.message_date >= '$start_date'";
 	 
 	 
 	 $dao->free();
-	
-	}	
-		
-	function OLDfixRecurringWithNoContribs(){
+}	
+
+function OLDfixRecurringWithNoContribs() {
 	
 		 // Check for recurring contributions with NO associated contributions. 
 	// print "<h2>Section: Look for contribution_recur records with NO associated contributions, as this prevents messages from being processed. </h2>";
@@ -832,10 +800,9 @@ AND m.message_date >= '$start_date'";
 	  
 	  }
 	   $dao->free();
-	
-	}	
-	     
-	 function create_needed_line_item_db_records( $line_item_id, $line_item_data, $contrib_data ){
+}	
+
+function create_needed_line_item_db_records( $line_item_id, $line_item_data, $contrib_data) {
 	 
 	 
 	      if( strlen($contrib_data['trxn_id']) == 0 ){
@@ -904,10 +871,9 @@ AND m.message_date >= '$start_date'";
 	 
 	 
 	//  print "<br>Done with db records for one line item";
-	 
-	 }   
-	    
-	 function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id , &$trxn_id, &$trxn_receive_date, &$payment_instrument_id  ){
+}   
+
+function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id , &$trxn_id, &$trxn_receive_date, &$payment_instrument_id) {
 	 
 	   $contribution_completed = false; 
 	   
@@ -1006,12 +972,9 @@ AND m.message_date >= '$start_date'";
 	      
 	 
 	 }
-	 
-	 }   
-	    
-	    
-	    
-	 function update_recurring_subscription_details( $crm_recur_id ,  $trxn_receive_date  ){
+}   
+
+function update_recurring_subscription_details( $crm_recur_id ,  $trxn_receive_date) {
 	 	if(strlen( $crm_recur_id) == 0){
 	 		// print "<br>ERROR: crm_recur_id is a required parameter";
 	 		return; 
@@ -1060,13 +1023,10 @@ AND m.message_date >= '$start_date'";
 		}else{
 		   $recur_expected_contribution_count  = $result['installments'];
 		     // print "<br>Expected Contributions for this recuring subscription: ".$recur_expected_contribution_count;
-		   
-		
 		}
 
-
 		$new_recur_status = "";
-		//if( is_numeric( $recur_completed_contribution_count )) {
+
 		if( is_numeric( $recur_completed_contribution_count ) && is_numeric( $recur_expected_contribution_count) ){
 			$recur_completed_num  = intval( $recur_completed_contribution_count) ;
 	 		$recur_expected_num = intval( $recur_expected_contribution_count );
@@ -1084,9 +1044,8 @@ AND m.message_date >= '$start_date'";
 	 			$new_recur_status = "5" ; // In progress
 	 		
 	 		}
-		
-		
 		}
+
 		if( strlen( $new_recur_status) > 0 ){
 			$status_sql = " , contribution_status_id = ".$new_recur_status;
 		}else{
@@ -1099,12 +1058,9 @@ AND m.message_date >= '$start_date'";
 	 	 // print "<br><br>Update recur sql: <br>".$update_sql; 
 	 	$dao  =  & CRM_Core_DAO::executeQuery($update_sql,   CRM_Core_DAO::$_nullArray ) ;
 	 	$dao->free();
-	 
-	 
-	 }
+}
 	    
-	 function findFirstContributionInSubscription( $log_handle,  $crm_recur_id,  &$first_contrib_id,  &$first_contrib_status){
-	 	
+function findFirstContributionInSubscription( $log_handle,  $crm_recur_id,  &$first_contrib_id,  &$first_contrib_status) {
 	 	// Find the 'pending' contribution record for this subscription. (Should only be one or zero) 
 	 	$pending_status_id = "2"; 
 	 	$completed_status_id = "1"; 
@@ -1173,30 +1129,18 @@ AND m.message_date >= '$start_date'";
 		        		$tmp_contrib_id = $result['values'][0]['contribution_id'] ;
 		        		$first_contrib_id = $tmp_contrib_id; 
 		        	}
-		        
-		        
 		        }
-		        
-		        
-		        
+
 		        $first_contrib_status = $completed_status_id ; 
 		    }else{
 		    	// print "<br><br>Error: More than one pending contribution found. This is invalid. ";
 		    
 		    }
-			
-			
-		
-		}
-			
-	 	
-	 
-	 }  
-	    
-	 function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id  ){
-	 	
+	}
+}
+
+function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id) {
 	 	$rtn_code = false; 
-	 	
 		
 		// Get the first completed contribution ID from the subscription. Will use the details
 		// to create the lastest contribution. Only difference should be date, and transaction ID. 
@@ -1211,12 +1155,8 @@ AND m.message_date >= '$start_date'";
 			// print_r($base_result ) ;
 			
 			 return $rtn_code; 
-			
 		}
-		
-		
-		
-		
+
 		// need to get all the line items
 		$lineitem_result = civicrm_api('LineItem', 'get', array( 'version' => 3, 'sequential' => 1, 
 		'entity_table' => 'civicrm_contribution',   'entity_id' => $base_contrib_id ) );
@@ -1375,39 +1315,26 @@ AND m.message_date >= '$start_date'";
 				// print "<br> End of loop iteration on line item"; 					
 					
 			}  // end of loop on each line item.
-					
-				  
-			
-			
 
-		
-		
-		
-				
-			
-	  return $rtn_code; 
-	 
-	 
-	 }
-	 
-	 function getContributionAPINames(){
- 
+  return $rtn_code; 
+}
+
+function getContributionAPINames() {
  	$all_api_names = array();
- 	
  	
  	// get all active set IDs.
  	$set_sql = "SELECT id as set_id FROM civicrm_custom_group
  			WHERE extends = 'Contribution' AND is_active =1 "; 
  	
  	$all_set_ids = array();
- 	$dao =& CRM_Core_DAO::executeQuery($set_sql );
- 	while( $dao->fetch() ) {
+ 	$dao = CRM_Core_DAO::executeQuery($set_sql);
+
+ 	while ($dao->fetch()) {
  		$all_set_ids[] = $dao->set_id; 
- 	
  	}
- 	
+
  	$dao->free();
- 	
+
  	// get active fields for each set.
  	foreach( $all_set_ids as $cur_set_id){
  		$params = array(
@@ -1428,9 +1355,6 @@ AND m.message_date >= '$start_date'";
 			}
 		}
  	}
- 	
- 	return $all_api_names;
- 	
- 
- }
-	 
+
+  return $all_api_names;
+}
