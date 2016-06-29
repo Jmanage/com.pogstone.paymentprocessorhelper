@@ -1,4 +1,5 @@
 <?php
+
 /*
  +--------------------------------------------------------------------+
  | CiviCRM version 4.3                                                |
@@ -37,195 +38,186 @@ class CRM_Core_Payment_AuthorizeNetIPN extends CRM_Core_Payment_BaseIPN {
     parent::__construct();
   }
 
+  function pogstone_log_details() {
+    // Pogstone added:
+    // $tmp_server_path =   realpath($_SERVER['DOCUMENT_ROOT'].'/../');
+    // $filename_prefix = date('Y-m-d');
 
-   function pogstone_log_details(){
-    	
-	  
-    	 // Pogstone added:
-    	 // $tmp_server_path =   realpath($_SERVER['DOCUMENT_ROOT'].'/../') ;   
-    	  
-    	 // $filename_prefix = date('Y-m-d');
-    	  
-    	  
-	  //$logfile = $tmp_server_path."/".$filename_prefix."__pogstone_auth_net_log.txt";
-	  //print "<br>Log file path: ".$logfile;
-	  
-	  //   $auth_net_log_handle =   fopen(  $logfile , "a+") ;
-	     
-	     $now = date('Y-m-d  H:i:s');
-	     
-	  //   if($auth_net_log_handle){
-	     
-	     
-	  //  fwrite ( $auth_net_log_handle, $now); 
-	  //  fwrite(  $auth_net_log_handle , '  ');
-	    // Flag if this is an ARB transaction. Set to false by default.
-		$arb = false;
-		
-		// Store the posted values in an associative array
-		$fields = array();
-		
-		$raw_msg = '';
-		foreach ($_REQUEST as $name => $value)
-		{
-			// Create our associative array
-			$fields[$name] = $value;
-			$tmp = "Name: ".$name."  ---  Value: ".$value." ----------";
-			
-			$raw_msg = $raw_msg.$tmp;
-			//fwrite(  $auth_net_log_handle ,$tmp) ;
-			
-			
-		}
-	    
-	    
-	    
-	  //  fwrite($auth_net_log_handle, "\n-----------------------------------------------------------\n\n");
-    	// Get all the URL parameters/fields into variables.  
-    	//	}
-    	
-    	
-    	//   ``,
-    	 $x_response_code = $fields['x_response_code'];
-    	 $x_response_reason_code = $fields['x_response_reason_code'];
-    	 $x_response_reason_text = $fields['x_response_reason_text'];
-    	 $x_avs_code = $fields['x_avs_code'];
-    	 $x_auth_code = $fields['x_auth_code'];
-    	 $x_trans_id = $fields['x_trans_id'];
-    	 $x_method = $fields['x_method'];
-    	 $x_card_type = $fields['x_card_type'];
-    	
-    	
-    	
-    	$x_account_number = $fields['x_account_number'] ; 
-    	$x_first_name = $fields['x_first_name'] ;
-    	$x_last_name = $fields['x_last_name'];
-    	$x_company = $fields['x_company'];
-    	$x_address = $fields['x_address'];
-    	$x_city = $fields['x_city'];
-    	$x_state = $fields['x_state'];
-    	$x_zip = $fields['x_zip'] ;
-    	$x_country = $fields['x_country'];
-    	$x_phone = $fields['x_phone'];
-    	$x_fax = $fields['x_fax']; 
-    	 $x_email = $fields['x_email'];
-    	 $x_invoice_num = $fields['x_invoice_num'];
-    	 $x_description = $fields['x_description'];
-    	 $x_type = $fields['x_type'];
-    	 $x_cust_id = $fields['x_cust_id'];
-    	 $x_ship_to_first_name = $fields['x_ship_to_first_name'];
-    	 $x_ship_to_last_name = $fields['x_ship_to_last_name'];
-    	 $x_ship_to_company = $fields['x_ship_to_company'];
-    	 $x_ship_to_address = $fields['x_ship_to_address'];
-    	 $x_ship_to_city = $fields['x_ship_to_city'];
-    	 $x_ship_to_state = $fields['x_ship_to_state'];
-    	 $x_ship_to_zip = $fields['x_ship_to_zip'];
-    	 $x_ship_to_country = $fields['x_ship_to_country'];
-    	 $x_amount = $fields['x_amount'];
-    	 $x_tax = $fields['x_tax'];
-    	 $x_duty = $fields['x_duty'];
-    	 $x_freight = $fields['x_freight'];
-    	 $x_tax_exempt = $fields['x_tax_exempt'];
-    	 $x_po_num = $fields['x_po_num'];
-    	 $x_MD5_Hash = $fields['x_MD5_Hash'];
-    	 $x_cvv2_resp_code = $fields['x_cvv2_resp_code'];
-    	 $x_cavv_response = $fields['x_cavv_response'];
-    	 $x_test_request = $fields['x_test_request'];
-    	 $x_subscription_id = $fields['x_subscription_id'];
-    	 $x_subscription_paynum = $fields['x_subscription_paynum'];
-    	   
-    	   
-    	 // Check for refunds. For refunds, record the amount as a negative number. 
-    	 if($x_type == 'credit'){
-    	         $amount_as_num = (float) $x_amount;
-    	 	 $x_amount = 0 - $amount_as_num;
-    	 }  	
-    	
-    	$sql = "INSERT INTO pogstone_authnet_messages (`civicrm_contribution_id`, `civicrm_recur_id`, `rec_type`, `message_date`, 
-    	`x_response_code`, `x_response_reason_code`, `x_response_reason_text`, `x_avs_code`, `x_auth_code`, `x_trans_id`, `x_method`, `x_card_type`,
-    	 `x_account_number`, `x_first_name`, `x_last_name`, `x_company`, `x_address`, `x_city`, `x_state`, `x_zip`, `x_country`, `x_phone`, `x_fax`,
-    	  `x_email`, `x_invoice_num`, `x_description`, `x_type`, `x_cust_id`, `x_ship_to_first_name`, `x_ship_to_last_name`, `x_ship_to_company`, 
-    	  `x_ship_to_address`, `x_ship_to_city`, `x_ship_to_state`, `x_ship_to_zip`, `x_ship_to_country`, `x_amount`, `x_tax`, `x_duty`, `x_freight`, 
-    	  `x_tax_exempt`, `x_po_num`, `x_MD5_Hash`, `x_cvv2_resp_code`, `x_cavv_response`, `x_test_request`, `x_subscription_id`, `x_subscription_paynum`, message_raw)
-    	   VALUES ('', '', 'authorize.net', CURRENT_TIMESTAMP, 
-    	   '".$x_response_code."', '".$x_response_reason_code."', '".$x_response_reason_text."', '".$x_avs_code."', '".$x_auth_code."', '".$x_trans_id."', '".$x_method."', '".$x_card_type."',
-    	    '".$x_account_number."', '".$x_first_name."', '".$x_last_name."', '".$x_company."', '".$x_address."', '".$x_city."', '".$x_state."', '".$x_zip."', '".$x_country."', '".$x_phone."', '".$x_fax."',
-    	     '".$x_email."', '".$x_invoice_num."', '".$x_description."', '".$x_type."', '".$x_cust_id."', '".$x_ship_to_first_name."', '".$x_ship_to_last_name."', '".$x_ship_to_company."', 
-    	     '".$x_ship_to_address."', '".$x_ship_to_city."', '".$x_ship_to_state."', '".$x_ship_to_zip."', '".$x_ship_to_country."', '".$x_amount."', '".$x_tax."', '".$x_duty."', '".$x_freight."',
-    	     '".$x_tax_exempt."', '".$x_po_num."', '".$x_MD5_Hash."', '".$x_cvv2_resp_code."', '".$x_cavv_response."', '".$x_test_request."', '".$x_subscription_id."', '".$x_subscription_paynum."', '".$raw_msg."');" ; 
-	
-	
-		$params = array();
-		
-		//print "<br>sql: ".$sql;
-		//print "<br>About to execute logging sql.";
-       	 	$dao = CRM_Core_DAO::executeQuery( $sql, $params );
-       	 	
-       	 	//print "<br>done with sql logging.<br>";
-       	 	$dao->free();
-    
+    //$logfile = $tmp_server_path."/".$filename_prefix."__pogstone_auth_net_log.txt";
+    //print "<br>Log file path: ".$logfile;
+
+    //   $auth_net_log_handle =   fopen(  $logfile , "a+") ;
+
+    $now = date('Y-m-d  H:i:s');
+
+    //   if($auth_net_log_handle){
+    //  fwrite ( $auth_net_log_handle, $now);
+    //  fwrite(  $auth_net_log_handle , '  ');
+
+    // Flag if this is an ARB transaction. Set to false by default.
+    $arb = false;
+
+    // Store the posted values in an associative array
+    $fields = array();
+
+    $raw_msg = '';
+
+    foreach ($_REQUEST as $name => $value) {
+      // Create our associative array
+      $fields[$name] = $value;
+      $tmp = "Name: ".$name."  ---  Value: ".$value." ----------";
+
+      $raw_msg = $raw_msg.$tmp;
+      //fwrite(  $auth_net_log_handle ,$tmp) ;
     }
 
+    //  fwrite($auth_net_log_handle, "\n-----------------------------------------------------------\n\n");
+    // Get all the URL parameters/fields into variables.
+    //  }
 
+    //   ``,
+    $x_response_code = $fields['x_response_code'];
+    $x_response_reason_code = $fields['x_response_reason_code'];
+    $x_response_reason_text = $fields['x_response_reason_text'];
+    $x_avs_code = $fields['x_avs_code'];
+    $x_auth_code = $fields['x_auth_code'];
+    $x_trans_id = $fields['x_trans_id'];
+    $x_method = $fields['x_method'];
+    $x_card_type = $fields['x_card_type'];
 
+    $x_account_number = $fields['x_account_number'];
+    $x_first_name = $fields['x_first_name'] ;
+    $x_last_name = $fields['x_last_name'];
+    $x_company = $fields['x_company'];
+    $x_address = $fields['x_address'];
+    $x_city = $fields['x_city'];
+    $x_state = $fields['x_state'];
+    $x_zip = $fields['x_zip'] ;
+    $x_country = $fields['x_country'];
+    $x_phone = $fields['x_phone'];
+    $x_fax = $fields['x_fax'];
+    $x_email = $fields['x_email'];
+    $x_invoice_num = $fields['x_invoice_num'];
+    $x_description = $fields['x_description'];
+    $x_type = $fields['x_type'];
+    $x_cust_id = $fields['x_cust_id'];
+    $x_ship_to_first_name = $fields['x_ship_to_first_name'];
+    $x_ship_to_last_name = $fields['x_ship_to_last_name'];
+    $x_ship_to_company = $fields['x_ship_to_company'];
+    $x_ship_to_address = $fields['x_ship_to_address'];
+    $x_ship_to_city = $fields['x_ship_to_city'];
+    $x_ship_to_state = $fields['x_ship_to_state'];
+    $x_ship_to_zip = $fields['x_ship_to_zip'];
+    $x_ship_to_country = $fields['x_ship_to_country'];
+    $x_amount = $fields['x_amount'];
+    $x_tax = $fields['x_tax'];
+    $x_duty = $fields['x_duty'];
+    $x_freight = $fields['x_freight'];
+    $x_tax_exempt = $fields['x_tax_exempt'];
+    $x_po_num = $fields['x_po_num'];
+    $x_MD5_Hash = $fields['x_MD5_Hash'];
+    $x_cvv2_resp_code = $fields['x_cvv2_resp_code'];
+    $x_cavv_response = $fields['x_cavv_response'];
+    $x_test_request = $fields['x_test_request'];
+    $x_subscription_id = $fields['x_subscription_id'];
+    $x_subscription_paynum = $fields['x_subscription_paynum'];
+
+    // Check for refunds. For refunds, record the amount as a negative number.
+    if ($x_type == 'credit') {
+      $amount_as_num = (float) $x_amount;
+      $x_amount = 0 - $amount_as_num;
+    }
+
+    if (strlen($x_amount) == 0) {
+      $x_amount = "0";
+    }
+
+    if( strlen( $x_subscription_id) == 0){
+      $x_subscription_id = "0";
+    }
+
+    if (strlen($x_subscription_paynum) == 0) {
+       $x_subscription_paynum = "0";
+    }
+
+    $sql = "INSERT INTO pogstone_authnet_messages (`civicrm_contribution_id`, `civicrm_recur_id`, `rec_type`, `message_date`,
+      `x_response_code`, `x_response_reason_code`, `x_response_reason_text`, `x_avs_code`, `x_auth_code`, `x_trans_id`, `x_method`, `x_card_type`,
+       `x_account_number`, `x_first_name`, `x_last_name`, `x_company`, `x_address`, `x_city`, `x_state`, `x_zip`, `x_country`, `x_phone`, `x_fax`,
+        `x_email`, `x_invoice_num`, `x_description`, `x_type`, `x_cust_id`, `x_ship_to_first_name`, `x_ship_to_last_name`, `x_ship_to_company`,
+        `x_ship_to_address`, `x_ship_to_city`, `x_ship_to_state`, `x_ship_to_zip`, `x_ship_to_country`, `x_amount`, `x_tax`, `x_duty`, `x_freight`,
+        `x_tax_exempt`, `x_po_num`, `x_MD5_Hash`, `x_cvv2_resp_code`, `x_cavv_response`, `x_test_request`, `x_subscription_id`, `x_subscription_paynum`, message_raw)
+         VALUES ('', '', 'authorize.net', CURRENT_TIMESTAMP,
+         '$x_response_code', '$x_response_reason_code', '$x_response_reason_text', '$x_avs_code', '$x_auth_code', '$x_trans_id', '$x_method',
+          '$x_card_type',
+          '$x_account_number', '$x_first_name', '$x_last_name', '$x_company', '$x_address', '$x_city',
+          '".$x_state."', '".$x_zip."', '".$x_country."', '".$x_phone."', '".$x_fax."',
+           '".$x_email."', '".$x_invoice_num."', '".$x_description."', '".$x_type."', '".$x_cust_id."', '".$x_ship_to_first_name."', '".$x_ship_to_last_name."', '".$x_ship_to_company."',
+           '".$x_ship_to_address."', '".$x_ship_to_city."', '".$x_ship_to_state."', '".$x_ship_to_zip."', '$x_ship_to_country', '$x_amount' , '$x_tax', '".$x_duty."', '".$x_freight."',
+           '".$x_tax_exempt."', '".$x_po_num."', '".$x_MD5_Hash."', '".$x_cvv2_resp_code."', '$x_cavv_response', '$x_test_request', '".$x_subscription_id."', '".$x_subscription_paynum."', '".$raw_msg."');" ;
+
+    $params = array();
+
+    //print "<br>sql: ".$sql;
+    //print "<br>About to execute logging sql.";
+    $dao = CRM_Core_DAO::executeQuery( $sql, $params );
+
+    //print "<br>done with sql logging.<br>";
+    $dao->free();
+  }
 
   function main($component = 'contribute') {
+    // Pogstone added:
+    require_once 'CRM/Utils/Request.php';
+    self::pogstone_log_details();
 
+    // Pogstone note: Bypass the usual CiviCRM core processing because its VERY buggy on 4.3.x.
+    // Instead there is a Pogstone CRON job that will process the messages from the log database table.
 
-	 // Pogstone added:
-	 require_once 'CRM/Utils/Request.php';
-	   self::pogstone_log_details();
-	    
+    // end of Pogstone section.
+    require_once('utils/Entitlement.php');
+    $tmpEntitlement = new Entitlement();
 
-	// Pogstone note: Bypass the usual CiviCRM core processing because its VERY buggy on 4.3.x.
-	// Instead there is a Pogstone CRON job that will process the messages from the log database table. 
-	
-	 // end of Pogstone section.
-	 require_once('utils/Entitlement.php');
-	$tmpEntitlement = new Entitlement();
-	
-	if($tmpEntitlement->isRunningCiviCRM_4_3() ){
-		// Do nothing. CRON job will process the data into contributions. 
-	}else{
-    		print "<br><br>ERROR: This code is only meant for CiviCRM 4.3.x";
-    		
-    		// This code only executes on version 4.2.x
-    //we only get invoice num as a key player from payment gateway response.
-    //for ARB we get x_subscription_id and x_subscription_paynum
-    $x_subscription_id = self::retrieve('x_subscription_id', 'String');
+    if($tmpEntitlement->isRunningCiviCRM_4_3()) {
+      // Do nothing. CRON job will process the data into contributions.
+    }
+    else {
+      print "<br><br>ERROR: This code is only meant for CiviCRM 4.3.x";
 
-    if ($x_subscription_id) {
-      //Approved
+      // This code only executes on version 4.2.x
+      //we only get invoice num as a key player from payment gateway response.
+      //for ARB we get x_subscription_id and x_subscription_paynum
+      $x_subscription_id = self::retrieve('x_subscription_id', 'String');
 
-      $ids = $objects = array();
-      $input['component'] = $component;
+      if ($x_subscription_id) {
+        //Approved
 
-      // load post vars in $input
-      $this->getInput($input, $ids);
+        $ids = $objects = array();
+        $input['component'] = $component;
 
-      // load post ids in $ids
-      $this->getIDs($ids, $input);
+        // load post vars in $input
+        $this->getInput($input, $ids);
 
-      $paymentProcessorID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType',
-        'AuthNet', 'id', 'name'
-      );
+        // load post ids in $ids
+        $this->getIDs($ids, $input);
 
-      if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
-        return FALSE;
-      }
+        $paymentProcessorID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType',
+          'AuthNet', 'id', 'name'
+        );
 
-      if ($component == 'contribute' && $ids['contributionRecur']) {
-        // check if first contribution is completed, else complete first contribution
-        $first = TRUE;
-        if ($objects['contribution']->contribution_status_id == 1) {
-          $first = FALSE;
+        if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+          return FALSE;
         }
-        return $this->recur($input, $ids, $objects, $first);
+
+        if ($component == 'contribute' && $ids['contributionRecur']) {
+          // check if first contribution is completed, else complete first contribution
+          $first = TRUE;
+          if ($objects['contribution']->contribution_status_id == 1) {
+            $first = FALSE;
+          }
+          return $this->recur($input, $ids, $objects, $first);
+        }
       }
     }
-    
-    }
-    
   }
 
   function recur(&$input, &$ids, &$objects, $first) {

@@ -4,42 +4,29 @@
  * A custom contact search
  */
 class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CRM_Contact_Form_Search_Custom_Base implements CRM_Contact_Form_Search_Interface {
-  
-  
-    protected $_statusChoices = null;  
-    protected $_userChoices = null; 
+  protected $_statusChoices = null;  
+  protected $_userChoices = null; 
 
-    function __construct( &$formValues ) {
-        parent::__construct( $formValues );
+  function __construct(&$formValues) {
+    parent::__construct($formValues);
 
-  	
-	
-        $this->setColumns( );
-	
-	$this->_statusChoices = CRM_Utils_Array::value( 'status_id',
-                                                  $this->_formValues );
-	
-
-    }
+    $this->setColumns();
+    $this->_statusChoices = CRM_Utils_Array::value( 'status_id', $this->_formValues);
+  }
     
-     function buildForm( &$form ) {
-     
-     	$this->setTitle('Payment Processor Messages');
-     	
-     	
-      $config = CRM_Core_Config::singleton();
-	if ($config->userSystem->is_drupal){
-	      // This is a Drupal install, check user authority. 
-	        if( user_access('access CiviContribute') == false){	
-	      		 $this->setTitle('Not Authorized');
-	       		return; 
-	       
-	       }
-	}
-        
-        
-      
-        
+  function buildForm(&$form) {
+    $this->setTitle('Payment Processor Messages');
+
+    $config = CRM_Core_Config::singleton();
+
+    if ($config->userSystem->is_drupal) {
+      // This is a Drupal install, check user authority. 
+      if (user_access('access CiviContribute') == false) {
+        $this->setTitle('Not Authorized');
+        return;
+      }
+    }
+
 	$status_choices = array();
 	$status_choices[''] = " -- select --"; 
 	$status_choices['not_1'] = "Only Non-completed Transactions";
@@ -121,6 +108,33 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
 		$eway_enabled = $bool_str === 'true'? true: false;
 	
 	}
+	
+	$iats_types = array(); 
+      $iats_types[] = "iATS Payments Credit Card";
+      $iats_types[] = "iATS Payments ACH\/EFT";
+      $iats_types[] = "iATS Payments SWIPE";
+      
+      $iats_enabled = false; 
+      foreach(  $iats_types as $cur){
+   
+		
+		$params = array(
+		  'version' => 3,
+		  'sequential' => 1,
+		  'vendor_type' => $cur,
+		);
+		$result = civicrm_api('PaymentProcessorTypeHelper', 'get', $params);
+		
+		$tmp  = $result['values'][0];
+		if($tmp['id'] == $cur){
+			$bool_str = $tmp['name'];
+			if( $bool_str === 'true' ){
+				$iats_enabled = true; 
+			}
+		
+		}
+		
+	}
           
               
         $processor_choices = array();
@@ -134,6 +148,11 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
 	
 	if($eway_enabled ){
 		$processor_choices['eway'] = "eWay";  
+	}
+	
+	if( $iats_enabled){
+		$processor_choices['iats'] = "iATS";  
+	
 	}
 	
 	$form->add( 'select',
@@ -243,12 +262,7 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
 
 /***********************************************************************************************/
 
-       
-
-    
     function setColumns( ) {
-    
-    
     /*  PayPal message table:
         `rp_invoice_id`, `notify_version`, `amount_per_cycle`, `payer_status`,
          `business`, `verify_sign`, 
@@ -258,11 +272,8 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
     */
    
         $processor_type = $this->_formValues['payment_processor_type_choices']; 
-        
-        
+
        if( $processor_type == "paypal"){
-       
-      
        	  $this->_columns = array( 
 				 ts('message_date') => 'message_date',        			
         			 ts('rec_type') => 'rec_type' ,
@@ -299,14 +310,9 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
         			 ts('payer_id') => 'payer_id' ,
         			 ts('product_name') => 'product_name' ,
         			   ts('charset') => 'charset' ,
-        			
-        			 
         			 ); 
-        			 
-       
        
        }else if( $processor_type == "authorize.net" ){
-       
     
         $tmp_array =  array( 
 				  ts('message_date') => 'message_date',        			
@@ -383,7 +389,9 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
     
         $this->_columns = array( 
 				  ts('eWay Email Date') => 'adj_eway_email_date',  
-				  ts('eway_name') => 'eway_name',       			
+				   ts('Transaction Type') => 'eway_trans_type', 
+				  ts('eway_name') => 'eway_name',  
+				  ts('eWay transaction Type') => 'eway_trans_type',      			
         			  ts('Contrib. ID') => 'crm_contrib_id', 
         			  ts('Financial Type') => 'contrib_type_name' , 
         			 ts('Contact Name') => 'crm_contact_name', 
@@ -404,14 +412,23 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
         			   );
         			 
         	
+        	}else if(  $processor_type == "iats" ){
+        	
+        	/*
+        	  $selectClause = " msgs.transaction_id, msgs.invoice_id, msgs.trans_date, msgs.recur_id, msgs.payment_instrument_id,
+           c.contact_id as contact_id, contact_a.sort_name as crm_contact_name, recur.id  as crm_recur_id ";
+       
+               */
+        		  $this->_columns = array( 
+				  ts('Date') => 'trans_date', 
+				  ts('Transaction ID') => 'transaction_id',  
+				  ts('Contact') => 'crm_contact_name',
+				  ts('CRM recur id') => 'crm_recur_id',  
+				  ts('Payment Instrument ID') => 'payment_instrument_id', 
+				  );
         	}		
-                               
-      
     }
 
-  
-
-   
     function all( $offset = 0, $rowcount = 0, $sort = null,
                   $includeContactIDs = false,  $onlyIDs = false ) {
                   
@@ -425,19 +442,14 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
 	       
 	       }
 	}
-      
-       
-       
-    
-       
+
          if ( $onlyIDs ) {
        $selectClause  = "contact_a.id as contact_id, contact_a.id as id ";
        }else{
-       
-      
 	
         $processor_type = $this->_formValues['payment_processor_type_choices']; 
         
+      //  print "<br><br> processor_type: ".$processor_type; 
         
        if( $processor_type == "paypal"){
        	 $selectClause = "concat(msgs.last_name, ',' , msgs.first_name) as sort_name  , 
@@ -454,9 +466,6 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
        	 msgs.civicrm_contribution_id, msgs.civicrm_recur_id, msgs.civicrm_processed"; 
        
        }else if( $processor_type == "authorize.net" ){
-       
-       	
-          	
           $tmp_layout_choice = $this->_formValues['layout_choice']; 
           if( $tmp_layout_choice == 'combine_possible_duplicates'){
           
@@ -498,8 +507,12 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
 				}
 				
        
-       		$selectClause = " `rec_type`, DATE_ADD( `eway_email_date`,  INTERVAL ".$hours_to_add." ) as adj_eway_email_date,  `eway_currency`, `eway_amount`, `eway_transaction_id`, `eway_name`, `eway_address`,  `eway_invoice_reference_number`, `eway_email_subject`, `eway_email_body`, c.id as crm_contrib_id, c.contact_id as contact_id, contact_a.sort_name as crm_contact_name, ct.name as contrib_type_name, recur.id  as crm_recur_id, recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id,
+       		$selectClause = " `rec_type`, DATE_ADD( `eway_email_date`,  INTERVAL ".$hours_to_add." ) as adj_eway_email_date,  `eway_currency`, `eway_amount`, `eway_transaction_id`, `eway_name`, eway_trans_type, `eway_address`,  `eway_invoice_reference_number`, `eway_email_subject`, `eway_email_body`, c.id as crm_contrib_id, c.contact_id as contact_id, contact_a.sort_name as crm_contact_name, ct.name as contrib_type_name, recur.id  as crm_recur_id, recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id,
         	recur_contact.sort_name as recur_contact_name ";
+       
+       }else if(  $processor_type == "iats" ){
+           $selectClause = " msgs.transaction_id, msgs.invoice_id, msgs.trans_date, msgs.recur_id, msgs.payment_instrument_id,
+           c.contact_id as contact_id, contact_a.sort_name as crm_contact_name ";
        
        }else{
        
@@ -532,12 +545,15 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
           
           }
         
+        if( strlen( $sort) == 0){
+           $sort = "1";
+        }
         // for PayPal: need to add:  GROUP by msgs.ipn_track_id
        $tmp_full_sql =  $this->sql( $selectClause,
                            $offset, $rowcount, $sort,
                            $includeContactIDs, $groupBy );
                            
-  // print "<br><br>full sql: ". $tmp_full_sql;    	
+    //print "<br><br><br>full sql: ". $tmp_full_sql;    	
                            
          return $tmp_full_sql; 
          
@@ -593,6 +609,11 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
         	  LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id";
 	
 	
+    	}else if(  $processor_type == 'iats' ){
+    		$tmp_from = " FROM pogstone_iats_messages as msgs
+    		 LEFT JOIN civicrm_contribution c ON msgs.transaction_id = c.trxn_id
+    		 LEFT JOIN civicrm_contact contact_a ON c.contact_id = contact_a.id " ; 
+    	
     	}
         return $tmp_from;
 
@@ -641,6 +662,19 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
      }
       
       
+       }else if( $processor_type == 'iats' ){
+       	 $startDate = CRM_Utils_Date::processDate( $this->_formValues['start_date'] );
+	     if ( $startDate ) {
+	        $clauses[] = " date(msgs.trans_date) >= date($startDate)";
+	     }
+	
+	     $endDate = CRM_Utils_Date::processDate( $this->_formValues['end_date'] );
+	     if ( $endDate ) {
+	         $clauses[]  = " date(msgs.trans_date) <= date($endDate)";
+	     }
+	       
+       
+       
        }else{
       
       
@@ -845,10 +879,7 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
     
    // /civicrm/contact/view/contributionrecur?reset=1&id=338&cid=742&context=contribution
     }
-    
-    
-    
-    
+
     /* 
      * Functions below generally don't need to be modified
      */
@@ -876,9 +907,8 @@ class CRM_Paymentprocessorhelper_Form_Search_PaymentProcessorMessages extends CR
        }
    }
 
-   function summary( ) {
+   function summary() {
        return null;
    }
-    
-    
+
 }

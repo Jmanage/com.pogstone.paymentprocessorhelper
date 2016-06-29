@@ -8,15 +8,15 @@
     <author>Sarah Gladstone at Pogstone Inc.</author>
     <email>info@pogstone.com</email>
   </maintainer>
-  <releaseDate>2014-10-26</releaseDate>
-  <version>1.5</version>
+  <releaseDate>2015-01-22</releaseDate>
+  <version>3.1</version>
   <develStage>beta</develStage>
   <compatibility>
     <ver>4.3</ver>
     <ver>4.4</ver>
-    
+    <ver>4.5</ver>
   </compatibility>
-  <comments>During uninstall or disable, MySQL tables are NOT removed.</comments>
+  <comments>During uninstall or disable, MySQL tables are NOT removed.  This extension creates contributions of status "Failed" or "Completed" depending on the message details from the payment processor.</comments>
   <civix>
     <namespace>CRM/Paymentprocessorhelper</namespace>
   </civix>
