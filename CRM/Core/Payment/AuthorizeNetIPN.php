@@ -52,9 +52,10 @@ class CRM_Core_Payment_AuthorizeNetIPN extends CRM_Core_Payment_BaseIPN {
    */
   public function main($component = 'contribute') {
     // Pogstone added:
-    require_once 'CRM/Utils/Request.php';
-    self::pogstone_log_details();
+    $this->pogstone_log_details();
+    return TRUE;
     // End of Pogstone section.
+    // NB: leaving the rest of the file intact so that it is easier to diff with future CiviCRM versions.
 
     //we only get invoice num as a key player from payment gateway response.
     //for ARB we get x_subscription_id and x_subscription_paynum
@@ -365,7 +366,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     }
   }
 
-  function pogstone_log_details() {
+  public function pogstone_log_details() {
     // Pogstone added:
     $now = date('Y-m-d  H:i:s');
 
@@ -383,7 +384,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
       $tmp = "Name: ".$name."  ---  Value: ".$value." ----------";
 
       $raw_msg = $raw_msg.$tmp;
-      //fwrite(  $auth_net_log_handle ,$tmp) ;
     }
 
     $x_response_code = $fields['x_response_code'];
