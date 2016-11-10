@@ -25,7 +25,6 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
   $rec_count = handle_the_messages(); 
   $returnValues = array("record count:" . $rec_count);
 
-  // Spec: civicrm_api3_create_success($values = 1, $params = array(), $entity = NULL, $action = NULL)
   return civicrm_api3_create_success($returnValues, $params, 'ProcessorMessage', 'processnewmessages');
 }
 

@@ -459,7 +459,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
          VALUES ('', '', 'authorize.net', CURRENT_TIMESTAMP,
          '$x_response_code', '$x_response_reason_code', %2, '$x_avs_code', '$x_auth_code', '$x_trans_id', '$x_method',
           '$x_card_type',
-          '$x_account_number', '$x_first_name', '$x_last_name', '$x_company', '$x_address', '$x_city',
+          '$x_account_number', %3, %4, %5, %6, %7,
           '".$x_state."', '".$x_zip."', '".$x_country."', '".$x_phone."', '".$x_fax."',
            '".$x_email."', '".$x_invoice_num."', %1, '".$x_type."', '".$x_cust_id."', '".$x_ship_to_first_name."', '".$x_ship_to_last_name."', '".$x_ship_to_company."',
            '".$x_ship_to_address."', '".$x_ship_to_city."', '".$x_ship_to_state."', '".$x_ship_to_zip."', '$x_ship_to_country', '$x_amount' , '$x_tax', '".$x_duty."', '".$x_freight."',
@@ -468,6 +468,11 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $dao = CRM_Core_DAO::executeQuery($sql, array(
       1 => array($x_description, 'String'),
       2 => array($x_response_reason_text, 'String'),
+      3 => array($x_first_name, 'String'),
+      4 => array($x_last_name, 'String'),
+      5 => array($x_company, 'String'),
+      6 => array($x_address, 'String'),
+      7 => array($x_city, 'String'),
       99 => array($raw_msg, 'String'),
     ));
   }
