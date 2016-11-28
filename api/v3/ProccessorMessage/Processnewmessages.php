@@ -509,18 +509,19 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
   // If there is no email, do not attempt to find contact based only on first name and last name,
   // but do match on empty email.
 
-  $first_name_formatted_for_sql = mysql_real_escape_string($msg_first_name);
-  $last_name_formatted_for_sql = mysql_real_escape_string($msg_last_name);
-  $email_formatted_for_sql = mysql_real_escape_string($msg_email);
-
   $sql = "select c.id as contact_id from civicrm_contact c LEFT JOIN civicrm_email e ON c.id = e.contact_id
-      WHERE lower(c.first_name) = lower('$first_name_formatted_for_sql')
-      AND lower(c.last_name) = lower('$last_name_formatted_for_sql')
-      AND ifnull(lower(e.email), '') = lower('$email_formatted_for_sql')
+      WHERE c.first_name = '%1'
+      AND c.last_name = '%2'
+      AND ifnull(e.email, '') = '%3'
       AND c.is_deleted <> 1
       LIMIT 1";
+  $params = array(
+    1 => array($msg_first_name, 'Text'),
+    2 => array($msg_last_name, 'Text'),
+    3 => array($msg_email, 'Text'),
+  );
 
-  $dao = CRM_Core_DAO::executeQuery($sql);
+  $dao = CRM_Core_DAO::executeQuery($sql, $params);
 
   if ($dao->fetch()) {
     $contact_id = $dao->contact_id;
