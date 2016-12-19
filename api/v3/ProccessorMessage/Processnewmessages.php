@@ -638,43 +638,55 @@ function OLDfixRecurringWithNoContribs() {
   $dao->free();
 }
 
+/**
+ * FIXME: document me!
+ */
 function create_needed_line_item_db_records($line_item_id, $line_item_data, $contrib_data) {
-
   if (strlen($contrib_data['trxn_id']) == 0) {
-    //       print "<h2>Error: Transaction ID cannot be empty!</h2>";
-
-    exit();
+    CRM_Core_Error::fatal('create_needed_line_item_db_records: received an empty transaction ID.');
   }
 
-  // About to create needed line item records for one line item
-  $description_cleaned = str_replace("'", "\'", $line_item_data['label']);
+  // select * from civicrm_entity_financial_account where financial_account_id = 1 and entity_id = 1;
+  // NB: account_relationship=1 means that it's an income account.
+  // +----+------------------------+-----------+----------------------+----------------------+
+  // | id | entity_table           | entity_id | account_relationship | financial_account_id |
+  // +----+------------------------+-----------+----------------------+----------------------+
+  // |  1 | civicrm_financial_type |         1 |                    1 |                    1 |
+  // +----+------------------------+-----------+----------------------+----------------------+
 
-  $insert_sql_financial_item = "INSERT INTO
-                  civicrm_financial_item (  created_date, transaction_date, contact_id, description,
-                  amount,
-                  currency,
-                  financial_account_id, status_id , entity_table , entity_id )
-                  VALUES ( '" . $contrib_data['receive_date'] . "' , '" . $contrib_data['receive_date'] . "' , " . $contrib_data['contact_id'] . ",
-                   '" . $description_cleaned . "' , " . $line_item_data['line_total'] .
-          ", '" . $contrib_data['currency'] . "' ,
-                  " . $line_item_data['financial_type_id'] . ", '1' , 'civicrm_line_item' , " . $line_item_id . "  ) ";
+  $financial_account_id = CRM_Core_DAO::singleValueQuery('SELECT financial_account_id
+    FROM civicrm_entity_financial_account
+    WHERE financial_account_id = 1
+      AND entity_tabpe = "civicrm_financial_type"
+      AND entity_id = %1', array(
+    1 => array($line_item_data['financial_type_id'], 'Positive'),
+  ));
 
-  //       print "<br>Part 1: Insert SQL: ".$insert_sql_financial_item;
-  $dao_fi = & CRM_Core_DAO::executeQuery($insert_sql_financial_item, CRM_Core_DAO::$_nullArray);
-  $dao_fi->free();
+  $insert_sql_financial_item = "INSERT INTO civicrm_financial_item (created_date, transaction_date, contact_id, description, amount, currency, financial_account_id, status_id , entity_table , entity_id)
+    VALUES ( '" . $contrib_data['receive_date'] . "' , '" . $contrib_data['receive_date'] . "' , %3, %4,
+              " . $line_item_data['line_total'] . ", '" . $contrib_data['currency'] . "' ,
+              " . $line_item_data['financial_type_id'] . ", 1, 'civicrm_line_item' , " . $line_item_id . ")";
+
+  CRM_Core_DAO::executeQuery($insert_sql_financial_item, array(
+    3 => array($contrib_data['contact_id'], 'Positive'),
+    4 => array($line_item_data['label'], 'String'),
+  ));
 
   // Now get ID from new record
   $financial_item_id = "";
-  $get_id_sql = "SELECT * FROM civicrm_financial_item WHERE
-         entity_table = 'civicrm_line_item' AND  entity_id = " . $line_item_id;
 
-  $dao_get_id = & CRM_Core_DAO::executeQuery($get_id_sql, CRM_Core_DAO::$_nullArray);
+  $get_id_sql = "SELECT *
+     FROM civicrm_financial_item
+    WHERE entity_table = 'civicrm_line_item'
+      AND entity_id = " . $line_item_id;
+
+  $dao_get_id = CRM_Core_DAO::executeQuery($get_id_sql);
+
   while ($dao_get_id->fetch()) {
     $financial_item_id = $dao_get_id->id;
   }
 
   $dao_get_id->free();
-
 
   // civicrm_financial_trxn.id is needed for financial_trxn_id field. Go get it.
   $crm_trxn_id = "";
@@ -687,9 +699,8 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
   }
 
   $dao_get_trxn_id->free();
+
   if (strlen($crm_trxn_id) > 0) {
-
-
     $insert_sql_ft = "INSERT INTO civicrm_entity_financial_trxn ( entity_table, entity_id, financial_trxn_id, amount )
            VALUES( 'civicrm_financial_item', " . $financial_item_id . ", " . $crm_trxn_id . " , " . $line_item_data['line_total'] . " )  ";
 
