@@ -656,8 +656,8 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
 
   $financial_account_id = CRM_Core_DAO::singleValueQuery('SELECT financial_account_id
     FROM civicrm_entity_financial_account
-    WHERE financial_account_id = 1
-      AND entity_tabpe = "civicrm_financial_type"
+    WHERE account_relationship = 1
+      AND entity_table = "civicrm_financial_type"
       AND entity_id = %1', array(
     1 => array($line_item_data['financial_type_id'], 'Positive'),
   ));
@@ -665,11 +665,12 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
   $insert_sql_financial_item = "INSERT INTO civicrm_financial_item (created_date, transaction_date, contact_id, description, amount, currency, financial_account_id, status_id , entity_table , entity_id)
     VALUES ( '" . $contrib_data['receive_date'] . "' , '" . $contrib_data['receive_date'] . "' , %3, %4,
               " . $line_item_data['line_total'] . ", '" . $contrib_data['currency'] . "' ,
-              " . $line_item_data['financial_type_id'] . ", 1, 'civicrm_line_item' , " . $line_item_id . ")";
+              %7, 1, 'civicrm_line_item' , " . $line_item_id . ")";
 
   CRM_Core_DAO::executeQuery($insert_sql_financial_item, array(
     3 => array($contrib_data['contact_id'], 'Positive'),
     4 => array($line_item_data['label'], 'String'),
+    7 => array($financial_account_id, 'Positive'),
   ));
 
   // Now get ID from new record
@@ -704,11 +705,8 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
     $insert_sql_ft = "INSERT INTO civicrm_entity_financial_trxn ( entity_table, entity_id, financial_trxn_id, amount )
            VALUES( 'civicrm_financial_item', " . $financial_item_id . ", " . $crm_trxn_id . " , " . $line_item_data['line_total'] . " )  ";
 
-    // print "<br>Part 2: Insert SQL: ".$insert_sql_ft;
     $dao_ft = & CRM_Core_DAO::executeQuery($insert_sql_ft, CRM_Core_DAO::$_nullArray);
     $dao_ft->free();
-  } else {
-
   }
 }
 
@@ -720,21 +718,20 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
     'sequential' => 1,
     'id' => $crm_recur_id,
   );
+
   $result = civicrm_api('ContributionRecur', 'get', $params);
+
   if ($result['is_error'] <> 0) {
-    //print "<br><br>Error calling ContributionRecur Get API: <br>";
-    //print_r( $result) ;
-    fwrite($log_handle, '\n');
-    fwrite($log_handle, "Error calling ContributionRecur Get API: \n");
+    Civi::log()->warning("Error calling ContributionRecur Get API " . print_r($params, 1));
     return;
   }
 
   if ($result['count'] <> "1") {
     // print "<br><br>Error: Could not retrieve Recurring Contribution id: ".$crm_recur_id;
-    fwrite($log_handle, '\n');
-    fwrite($log_handle, "\nError: Could not retrieve Recurring Contribution id: " . $crm_recur_id);
+    Civi::log()->warning("Error: Could not retrieve Recurring Contribution id: " . $crm_recur_id);
     return;
   }
+
   $first_contrib_status = "";
   $first_contrib_id = "";
 
@@ -753,17 +750,12 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
       $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
       $contribution_completed = $rtn_code;
     } else {
-      // print "<Br><br>Error: For crm_recur_id: ".$crm_recur_id."   First contribution id (for completed contribution) is blank";
-      fwrite($log_handle, '\n');
-      fwrite($log_handle, "Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank \n");
+      Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank");
     }
   } else if ($first_contrib_status == "2") {
-    // update existing first contribution record staus from pending to complete
-    // print "<br><br>Need to update first contribution record (id: ".$first_contrib_id.") .";
-    // print "<br>Because API issues, will create brand new contribution based on first, then will delete the first pending";
-    fwrite($log_handle, '\n');
-    fwrite($log_handle, "\nNeed to update first contribution record (id: " . $first_contrib_id . ") . \n");
-    fwrite($log_handle, "\nBecause API issues, will create brand new contribution based on first, then will delete the first pending \n");
+    // Update existing first contribution record staus from pending to complete
+    Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id)");
+    Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
 
     if (strlen($first_contrib_id) > 0) {
       // Create a new contribution record based on data from the first contribution record.
@@ -782,10 +774,9 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
         // print "<br>Result from deleting the pending contribution:<br>";
         // print_r($result);
       }
-    } else {
-      //  print "<Br><br>Error: For crm_recur_id: ".$crm_recur_id." First contribution id (for pending contribution) is blank";
-      fwrite($log_handle, '\n');
-      fwrite($log_handle, "<Br><br>Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for pending contribution) is blank\n");
+    }
+    else {
+      Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for pending contribution) is blank");
     }
   } else {
     // print "<br><br>ERROR: Unrecognized contribution status for the first contribution record in the subscription";
@@ -884,34 +875,31 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
     'contribution_recur_id' => $crm_recur_id,
     'contribution_status_id' => $pending_status_id,
   );
+
   $result = civicrm_api('Contribution', 'get', $params);
+
   if ($result['is_error'] <> 0) {
     // print "<br>ERROR: issue calling Contribution Get API";
     // print_r ( $result );
-  } else {
-    fwrite($log_handle, '\n');
-    fwrite($log_handle, "Inside FindFirst: For crm_recur_id: " . $crm_recur_id . " first contrib array :");
+  }
+  else {
+    // [ML] Why? just debug?
     foreach ($result as $key => $cur_tmp) {
-      fwrite($log_handle, "\n" . $key . " : " . $cur_tmp);
-
       if ($key == 'values') {
         foreach ($cur_tmp as $key_j => $cur_j) {
           foreach ($cur_j as $key_k => $cur_k) {
-            fwrite($log_handle, "\n" . $key_k . " : " . $cur_k);
+            // fwrite($log_handle, "\n" . $key_k . " : " . $cur_k);
           }
         }
       }
     }
-    // print "<Br><br>for crm_recur_id: ".$crm_recur_id." first contrib:<br> ";
-    // print_r( $result  );
+
     if ($result['count'] == "1") {
       $first_contrib_id = $result['id'];
       $first_contrib_status = $pending_status_id;
     } else if ($result['count'] == "0") {
-      //  print "<br><br>There is no pending contribution. So create so get the oldest contribution on this subscription: ".$crm_recur_id;
-
-      fwrite($log_handle, '\n');
-      fwrite($log_handle, "There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id);
+      Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id)
+;
       $params = array(
         'version' => 3,
         'sequential' => 1,
@@ -922,19 +910,17 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
 
       // print_r( $result ) ;
       if ($result['is_error'] <> 0) {
-        // print "<br>ERROR: issue calling Contribution Get API";
-        // print_r ( $result );
-        fwrite($log_handle, "\n");
-        fwrite($log_handle, "ERROR: issue calling Contribution Get API: \n");
+        Civi::log()->warning("ProccessorMessage.Processnewmessages: ERROR: issue calling Contribution Get API:");
+
         foreach ($result as $key => $cur) {
-          fwrite($log_handle, "\n" . $key . " : " . $cur);
+          Civi::log()->warning($key . " : " . $cur);
         }
-      } else {
-        fwrite($log_handle, "Call to contrib API was successful.");
+      }
+      else {
         foreach ($result as $key => $cur) {
-          fwrite($log_handle, "\n" . $key . " : " . $cur);
+          Civi::log()->info($key . " : " . $cur);
         }
-        // print_r( $result ) ;
+
         if ($result['count'] <> 0) {
           $tmp_contrib_id = $result['values'][0]['contribution_id'];
           $first_contrib_id = $tmp_contrib_id;
@@ -942,8 +928,9 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
       }
 
       $first_contrib_status = $completed_status_id;
-    } else {
-      // print "<br><br>Error: More than one pending contribution found. This is invalid. ";
+    }
+    else {
+      Civi::log()->warning("ProccessorMessage.Processnewmessages: Error: More than one pending contribution found. This is invalid.");
     }
   }
 }
