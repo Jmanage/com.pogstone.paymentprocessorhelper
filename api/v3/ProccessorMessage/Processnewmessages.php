@@ -94,32 +94,39 @@ function handle_the_messages() {
   foreach ($all_message_types_tocheck as $cur_type) {
 
     if ($cur_type == "iATS") {
-      $sql = " SELECT    msg.transaction_id as transaction_id ,
+      $messages_table_name = 'pogstone_iats_messages';
+      $sql = " SELECT    msgs.id, msg.transaction_id as transaction_id ,
      msg.trans_date,
      msg.recur_id as crm_recur_id  , msg.payment_instrument_id
-    FROM `pogstone_iats_messages` msg
+    FROM $messages_table_name msg
     LEFT JOIN civicrm_contribution c ON msg.transaction_id = c.trxn_id
-    WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL ";
+    WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL
+    AND msgs.is_processed = 0
+    ";
     }
     elseif ($cur_type == "PayPal") {
-      $sql = "SELECT msgs.amount, msgs.txn_id, substr( msgs.payment_date, 10, 3 ) as payment_date_month ,
+      $messages_table_name = 'pogstone_paypal_messages';
+      $sql = "SELECT msgs.id, msgs.amount, msgs.txn_id, substr( msgs.payment_date, 10, 3 ) as payment_date_month ,
     substr( msgs.payment_date, 14, 2 ) as payment_date_day ,
     substr( msgs.payment_date, 18, 4 ) as payment_date_year ,
     concat(msgs.last_name, ',' , msgs.first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date , `payment_status` ,
       rp_invoice_id, recur.amount  as crm_amount
-      FROM pogstone_paypal_messages as msgs LEFT JOIN civicrm_contribution c ON msgs.txn_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.id = (  substr( rp_invoice_id, LOCATE( '&r=' , rp_invoice_id) + 3,   ( LOCATE(
+      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.txn_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.id = (  substr( rp_invoice_id, LOCATE( '&r=' , rp_invoice_id) + 3,   ( LOCATE(
     '&b=', rp_invoice_id ) - 3 -  (LOCATE( '&r=' , rp_invoice_id)  ) ) ) )  LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.payment_status = 'Completed' AND length(msgs.recurring_payment_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
+       AND msgs.is_processed = 0
        GROUP by msgs.ipn_track_id ";
     }
     elseif ($cur_type == "AuthNet") {
-      $sql = "SELECT concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date ,
+      $messages_table_name = 'pogstone_authnet_messages';
+      $sql = "SELECT msgs.id, concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date ,
            x_amount as message_amount,
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` , `x_type` , `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM pogstone_authnet_messages as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
+      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
+       AND msgs.is_processed = 0
         ";
     }
     elseif ($cur_type == "eWay") {
@@ -150,7 +157,7 @@ function handle_the_messages() {
       //$tmp_a =  $email_timestamp + $num_sec;
       //   print "<br><br>email timestamp: ".$email_timestamp."<br> Adjusted ts: ".$tmp_a;
       // $paymentDate = date('Ymd H:i:s', $tmp_a) ;
-
+      $messages_table_name = 'pogstone_eway_messages';
       $sql = "SELECT recur.id as crm_recur_id,  msgs.eway_transaction_id,
                DATE_ADD( `eway_email_date`,  INTERVAL " . $hours_to_add . " ) as adj_eway_email_date , `eway_currency`, `eway_amount`,
                 `eway_transaction_id`, `eway_name`, `eway_address`,
@@ -159,7 +166,7 @@ function handle_the_messages() {
                 recur.id as crm_recur_id, recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id,
                  recur_contact.id as recur_contact_id,
                 recur_contact.sort_name as recur_contact_name , recur.amount  as crm_amount
-               FROM pogstone_eway_messages as msgs LEFT JOIN civicrm_contribution c ON msgs.eway_transaction_id = c.trxn_id
+               FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.eway_transaction_id = c.trxn_id
                LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.eway_invoice_reference_number
                LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
                LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
@@ -176,7 +183,6 @@ function handle_the_messages() {
 
     // Store the posted values in an associative array
     $fields = array();
-
     // print "<h2>Section: Find new payment processor messages and attempt to create contribution records</h2>";
     if (strlen($sql) > 0) {
       $dao = CRM_Core_DAO::executeQuery($sql);
@@ -263,6 +269,17 @@ function handle_the_messages() {
         else {
           // print "<br>Error: Could not find crm_recur_id for x_subscription_id: ".$processor_subscription_id;
         }
+
+        // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
+        $sql = "
+          UPDATE $messages_table_name
+          SET is_processed = 1
+          WHERE id = %1
+        ";
+        $dao_params = array(
+          1 => array($dao->id, 'Int'),
+        );
+        CRM_Core_DAO::executeQuery($sql, $dao_params);
       }
 
       $dao->free();

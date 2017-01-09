@@ -126,7 +126,22 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
   	}
   	
   }
-  	
+
+  /**
+   * Add an `id` primary key column to pogstone_authnet_messages.
+   *
+   * @return TRUE on success
+   * @throws Exception
+   */
+  public function upgrade_4300() {
+    $this->ctx->log->info('Applying update 4300');
+    CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_authnet_messages` ADD  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST');
+    CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_iats_messages` CHANGE  `row_id`  `id` INT( 11 ) NOT NULL AUTO_INCREMENT');
+    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_authnet_messages` ADD  `is_processed` TINYINT( 4 ) NOT NULL DEFAULT '0'");
+    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_iats_messages` ADD  `is_processed` TINYINT( 4 ) NOT NULL DEFAULT '0'");
+    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_paypal_messages` ADD  `is_processed` TINYINT( 4 ) NOT NULL DEFAULT '0'");
+    return TRUE;
+  } 
 
   /**
    * Example: Run an external SQL script when the module is installed
