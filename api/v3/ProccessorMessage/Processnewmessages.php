@@ -100,7 +100,8 @@ function handle_the_messages() {
     FROM `pogstone_iats_messages` msg
     LEFT JOIN civicrm_contribution c ON msg.transaction_id = c.trxn_id
     WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL ";
-    } elseif ($cur_type == "PayPal") {
+    }
+    elseif ($cur_type == "PayPal") {
       $sql = "SELECT msgs.amount, msgs.txn_id, substr( msgs.payment_date, 10, 3 ) as payment_date_month ,
     substr( msgs.payment_date, 14, 2 ) as payment_date_day ,
     substr( msgs.payment_date, 18, 4 ) as payment_date_year ,
@@ -110,7 +111,8 @@ function handle_the_messages() {
     '&b=', rp_invoice_id ) - 3 -  (LOCATE( '&r=' , rp_invoice_id)  ) ) ) )  LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.payment_status = 'Completed' AND length(msgs.recurring_payment_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
        GROUP by msgs.ipn_track_id ";
-    } elseif ($cur_type == "AuthNet") {
+    }
+    elseif ($cur_type == "AuthNet") {
       $sql = "SELECT concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date ,
            x_amount as message_amount,
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
@@ -119,7 +121,8 @@ function handle_the_messages() {
       FROM pogstone_authnet_messages as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
         ";
-    } elseif ($cur_type == "eWay") {
+    }
+    elseif ($cur_type == "eWay") {
       // Currently only completed eWay transactions have an amount > 0.
       // Raw 'eway_email_date' is always in America/New York time zone. Need to adjust to the time zone of the client, such as Sydney in Australia
       $hours_to_add = "";
@@ -128,13 +131,16 @@ function handle_the_messages() {
       if ($org_timezone == 'Australia/Sydney') {
         $num_sec = 60 * 60 * 14;
         $hours_to_add = '14 HOUR';
-      } else if ($org_timezone == 'Australia/Melbourne') {
+      }
+      else if ($org_timezone == 'Australia/Melbourne') {
         $num_sec = 60 * 60 * 14;
         $hours_to_add = '14 HOUR';
-      } else if ($org_timezone == 'Australia/Perth') {
+      }
+      else if ($org_timezone == 'Australia/Perth') {
         $num_sec = 60 * 60 * 12;
         $hours_to_add = '12 HOUR';
-      } else {
+      }
+      else {
         print "<br>org time zone not recognized: " . $org_timezone;
         $num_sec = 60 * 60 * 14;
         $hours_to_add = '14 HOUR';
@@ -192,7 +198,8 @@ function handle_the_messages() {
           $trxn_id = $dao->transaction_id;
 
           $payment_instrument_id = $dao->payment_instrument_id;
-        } else if ($cur_type == "PayPal") {
+        }
+        else if ($cur_type == "PayPal") {
           $date_raw_year = $dao->payment_date_year;
           $date_raw_month = $dao->payment_date_month;
           $date_raw_day = $dao->payment_date_day;
@@ -205,7 +212,8 @@ function handle_the_messages() {
           $processor_subscription_id = $dao->recurring_payment_id;
           $payment_instrument_id = "1";  // Assume Credit Card
           // print "<br>Inside paypal section: amt: ".$amount;
-        } else if ($cur_type == "AuthNet") {
+        }
+        else if ($cur_type == "AuthNet") {
 
           $receive_date = $dao->message_date;
           $amount = $dao->x_amount;
@@ -219,7 +227,8 @@ function handle_the_messages() {
             $message_valid_to_process = false;
             $message_error_text = "Transaction amount ($tmp_trans_amount) does NOT match CRM amount ($tmp_crm_amount) for this subscription";
           }
-        } else if ($cur_type == "eWay") {
+        }
+        else if ($cur_type == "eWay") {
           // recur.id as crm_recur_id,  msgs.eway_transaction_id,   `eway_email_date`,
 
           $receive_date = $dao->adj_eway_email_date;
@@ -235,10 +244,12 @@ function handle_the_messages() {
           if (strlen($trxn_id) == 0) {
             //    print "<br><br>Cannot process this message, trxn_id is empty. ";
             //    print "<br> \n Error on contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id;
-          } else if ($message_valid_to_process <> true) {
+          }
+          else if ($message_valid_to_process <> true) {
             // print "<br><br>Cannot process this message: ".$message_error_text;
             //  print "<br> \n Error on contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id;
-          } else {
+          }
+          else {
             //  print "<h2>Process for contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id."</h2>";
             if ($log_handle) {
               fwrite($log_handle, "\n Process for contact id: " . $cid . " -- Name on Card: " . $card_billingname . " -- CRM Name: " . $crm_contact_name . " crm_recur_id: " . $recur_id . " trxn id: " . $trxn_id . "  ----------------------------------------------------\n\n");
@@ -248,7 +259,8 @@ function handle_the_messages() {
             // TODO: Check rtn_code to see if there was an error.
             $rec_count++;
           }
-        } else {
+        }
+        else {
           // print "<br>Error: Could not find crm_recur_id for x_subscription_id: ".$processor_subscription_id;
         }
       }
@@ -323,10 +335,12 @@ function handle_messges_with_no_contrib($cur_type) {
           if (strlen($x_cust_id) == 0 || ( is_int($x_cust_id) == false)) {
 
             $contact_id_tmp = get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email);
-          } else {
+          }
+          else {
             $contact_id_tmp = $x_cust_id;
           }
-        } else {
+        }
+        else {
           $contact_id_tmp = $recur_contact_id;
         }
 
@@ -337,10 +351,12 @@ function handle_messges_with_no_contrib($cur_type) {
           $contribution_status_id = "1"; // CiviCRM Completed status
           if ($trans_type == "auth_capture" || $trans_type == "capture_only") {
             $tmp_source = "automated record-($trans_description)";
-          } else if ($trans_type == "credit") {
+          }
+          else if ($trans_type == "credit") {
             $tmp_source = "automated record-(Auth.net credit) ($trans_description)";
           }
-        } else if ($response_code == "2" || $response_code == "3") {
+        }
+        else if ($response_code == "2" || $response_code == "3") {
           // failed
           //   print "<br>failed transaction";
           $contribution_status_id = "4"; // CiviCRM Failed status
@@ -355,7 +371,8 @@ function handle_messges_with_no_contrib($cur_type) {
         if (strlen($recur_contribution_type) == 0) {
           // Get financial type id for "Unknown Financial";
           $tmp_financial_type_id = getFinancialTypeID_forMessage();
-        } else {
+        }
+        else {
           $tmp_financial_type_id = $recur_contribution_type;
         }
         if (strlen($tmp_financial_type_id) > 0) {
@@ -373,7 +390,8 @@ function handle_messges_with_no_contrib($cur_type) {
               'contact_id' => $contact_id_tmp,
               'trxn_id' => $trans_id,
             );
-          } else {
+          }
+          else {
 
             $contrib_params = array(
               'version' => 3,
@@ -478,7 +496,8 @@ function getFinancialTypeID_forMessage() {
     if (1 == 1) {
       //$tmp_ft_id = $tmpfinhelper->getFinancialTypeId( $tmp_name) ;
       // print "<br>Created financial type with id: ".$tmp_ft_id;
-    } else {
+    }
+    else {
       //  print "<br>Unable to create financial type: ".$tmp_name;
     }
   }
@@ -543,7 +562,8 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
         'source' => $contact_source,
         'contact_type' => 'Individual',
       );
-    } else {
+    }
+    else {
       $params = array(
         'version' => 3,
         'sequential' => 1,
@@ -659,8 +679,8 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
     WHERE account_relationship = 1
       AND entity_table = "civicrm_financial_type"
       AND entity_id = %1', array(
-    1 => array($line_item_data['financial_type_id'], 'Positive'),
-  ));
+        1 => array($line_item_data['financial_type_id'], 'Positive'),
+      ));
 
   $insert_sql_financial_item = "INSERT INTO civicrm_financial_item (created_date, transaction_date, contact_id, description, amount, currency, financial_account_id, status_id , entity_table , entity_id)
     VALUES ( '" . $contrib_data['receive_date'] . "' , '" . $contrib_data['receive_date'] . "' , %3, %4,
@@ -668,10 +688,10 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
               %7, 1, 'civicrm_line_item' , " . $line_item_id . ")";
 
   CRM_Core_DAO::executeQuery($insert_sql_financial_item, array(
-    3 => array($contrib_data['contact_id'], 'Positive'),
-    4 => array($line_item_data['label'], 'String'),
-    7 => array($financial_account_id, 'Positive'),
-  ));
+        3 => array($contrib_data['contact_id'], 'Positive'),
+        4 => array($line_item_data['label'], 'String'),
+        7 => array($financial_account_id, 'Positive'),
+      ));
 
   // Now get ID from new record
   $financial_item_id = "";
@@ -749,10 +769,12 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
 
       $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
       $contribution_completed = $rtn_code;
-    } else {
+    }
+    else {
       Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank");
     }
-  } else if ($first_contrib_status == "2") {
+  }
+  else if ($first_contrib_status == "2") {
     // Update existing first contribution record staus from pending to complete
     Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id)");
     Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
@@ -778,7 +800,8 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
     else {
       Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for pending contribution) is blank");
     }
-  } else {
+  }
+  else {
     // print "<br><br>ERROR: Unrecognized contribution status for the first contribution record in the subscription";
   }
 
@@ -809,7 +832,8 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
     // print "<br>ERROR: issue calling Contribution Get API";
     // print_r ( $result );
     return;
-  } else {
+  }
+  else {
     // print "<br>Successfully called Contribution...getcount API";
     //print_r($result);
     $recur_completed_contribution_count = $result;
@@ -828,7 +852,8 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
     // print "<br>ERROR: issue calling ContributionRecur GetSingle API";
     // print_r ( $result );
     return;
-  } else {
+  }
+  else {
     $recur_expected_contribution_count = $result['installments'];
     // print "<br>Expected Contributions for this recuring subscription: ".$recur_expected_contribution_count;
   }
@@ -841,10 +866,12 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
 
     if ($recur_expected_num <> 0 && $recur_completed_num == $recur_expected_num) {
       $new_recur_status = "1"; // completed.
-    } else if ($recur_completed_num > 0) {
+    }
+    else if ($recur_completed_num > 0) {
       $new_recur_status = "5"; // In progress
     }
-  } else if (is_numeric($recur_completed_contribution_count)) {
+  }
+  else if (is_numeric($recur_completed_contribution_count)) {
     $recur_completed_num = intval($recur_completed_contribution_count);
     if ($recur_completed_num > 0) {
       $new_recur_status = "5"; // In progress
@@ -853,7 +880,8 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
 
   if (strlen($new_recur_status) > 0) {
     $status_sql = " , contribution_status_id = " . $new_recur_status;
-  } else {
+  }
+  else {
     $status_sql = "";
   }
 
@@ -897,9 +925,10 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
     if ($result['count'] == "1") {
       $first_contrib_id = $result['id'];
       $first_contrib_status = $pending_status_id;
-    } else if ($result['count'] == "0") {
+    }
+    else if ($result['count'] == "0") {
       Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id)
-;
+      ;
       $params = array(
         'version' => 3,
         'sequential' => 1,
@@ -955,7 +984,7 @@ function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_i
 
   // need to get all the line items
   $lineitem_result = civicrm_api('LineItem', 'get', array('version' => 3, 'sequential' => 1,
-            'entity_table' => 'civicrm_contribution', 'entity_id' => $base_contrib_id));
+        'entity_table' => 'civicrm_contribution', 'entity_id' => $base_contrib_id));
 
 
   if ($lineitem_result['is_error'] <> 0) {
@@ -1088,7 +1117,8 @@ function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_i
     if ($li_result['is_error'] <> 0) {
       // print "<br>Error calling Line Item API: <br>";
       // print_r( $li_result);
-    } else {
+    }
+    else {
       // print "<br>Called line item API: <br>";
       // print_r( $li_result);
       // This is needed because of bug in line item API.
