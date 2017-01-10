@@ -101,7 +101,7 @@ function handle_the_messages() {
     FROM $messages_table_name msg
     LEFT JOIN civicrm_contribution c ON msg.transaction_id = c.trxn_id
     WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL
-    AND msgs.is_processed = 0
+    AND msgs.processed IS NULL
     ";
     }
     elseif ($cur_type == "PayPal") {
@@ -114,7 +114,7 @@ function handle_the_messages() {
       FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.txn_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.id = (  substr( rp_invoice_id, LOCATE( '&r=' , rp_invoice_id) + 3,   ( LOCATE(
     '&b=', rp_invoice_id ) - 3 -  (LOCATE( '&r=' , rp_invoice_id)  ) ) ) )  LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.payment_status = 'Completed' AND length(msgs.recurring_payment_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
-       AND msgs.is_processed = 0
+       AND msgs.processed IS NULL
        GROUP by msgs.ipn_track_id ";
     }
     elseif ($cur_type == "AuthNet") {
@@ -126,7 +126,7 @@ function handle_the_messages() {
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` , `x_type` , `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
       FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
-       AND msgs.is_processed = 0
+       AND msgs.processed IS NULL
         ";
     }
     elseif ($cur_type == "eWay") {
@@ -273,7 +273,7 @@ function handle_the_messages() {
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
         $sql = "
           UPDATE $messages_table_name
-          SET is_processed = 1
+          SET processed = now()
           WHERE id = %1
         ";
         $dao_params = array(
