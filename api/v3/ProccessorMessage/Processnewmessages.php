@@ -273,18 +273,19 @@ function handle_the_messages() {
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
         $sql = "
           UPDATE $messages_table_name
-          SET processed = now()
-          WHERE id = %1
+          SET processed = %1
+          WHERE id = %2
         ";
         $dao_params = array(
-          1 => array($dao->id, 'Int'),
+          1 => array($now, 'String'),
+          2 => array($dao->id, 'Int'),
         );
         CRM_Core_DAO::executeQuery($sql, $dao_params);
       }
 
       $dao->free();
 
-      handle_messges_with_no_contrib($cur_type);
+      handle_messges_with_no_contrib($cur_type, $now);
     }
   }
 
@@ -301,11 +302,22 @@ function handle_the_messages() {
 
   UpdateRecurringContributionSubscription($log_handle, $crm_recur_id , $trxn_id, $trxn_receive_date  );
  */
-function handle_messges_with_no_contrib($cur_type) {
+
+/**
+ * For messages not yet associated with a contribution, associate them.
+ *
+ *
+ * @param String $cur_type e.g., 'AuthNet'
+ * @param String $timestamp A mysql datetime string. Messages may have already
+ *    been processed at $timestamp by handle_the_messages(), but this function
+ *    will handle them once more for its own purposes; however it will not
+ *    handle any messages already processed at a time other than $timestamp.
+ */
+function handle_messges_with_no_contrib($cur_type, $timestamp) {
   $start_date = '2015-01-15';
 
   if ($cur_type == "AuthNet") {
-    // print "<br><br><br> Authorize.net enabled";
+    $messages_table_name = 'pogstone_authnet_messages';
 
     $sql = " SELECT concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` ,
             date_format(message_date, '%Y-%m-%d'  ) as message_date , `x_type` as trans_type ,
@@ -313,15 +325,20 @@ function handle_messges_with_no_contrib($cur_type) {
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` ,  `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM pogstone_authnet_messages as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
        WHERE c.id IS NULL
        AND date(msgs.message_date) >= '$start_date'
        AND x_trans_id <> '0'
        AND x_type IN ( 'auth_capture', 'capture_only',  'credit' )
+       AND (msgs.processed IS NULL OR msgs.processed = %1)
         ";
 
+    $dao_params = array(
+      1 => array($timestamp, 'String'),
+    );
+
     //  sql for messages missing a contribution:
-    $dao = & CRM_Core_DAO::executeQuery($sql);
+    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
     while ($dao->fetch()) {
 
       $trans_id = $dao->x_trans_id;
@@ -424,7 +441,7 @@ function handle_messges_with_no_contrib($cur_type) {
             );
           }
 
-
+          
           $result = civicrm_api('Contribution', 'create', $contrib_params);
           if ($result[is_error] == 1) {
 
@@ -435,6 +452,18 @@ function handle_messges_with_no_contrib($cur_type) {
             //print_r( $result);
           }
         }
+        
+        // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
+        $sql = "
+          UPDATE $messages_table_name
+          SET processed = %1
+          WHERE id = %2
+        ";
+        $dao_params = array(
+          1 => array($timestamp, 'String'),
+          2 => array($dao->id, 'Int'),
+        );
+        CRM_Core_DAO::executeQuery($sql, $dao_params);
       }
     }
 
@@ -448,7 +477,7 @@ function handle_messges_with_no_contrib($cur_type) {
       m.x_country , m.x_phone , m.x_fax , m.x_email , m.x_invoice_num , m.x_description , m.x_cust_id, m.x_ship_to_first_name ,
  m.x_ship_to_last_name , m.x_ship_to_company , m.x_ship_to_address , m.x_ship_to_city , m.x_ship_to_state , m.x_ship_to_zip , m.x_ship_to_country ,
  m.x_amount , m.x_tax , m.x_duty , m.x_freight , m.x_tax_exempt, m.x_po_num , m.x_MD5_Hash , m.x_cvv2_resp_code , m.x_cavv_response, m.x_test_request ,
-  m.x_subscription_id , m.x_subscription_paynum , recur.amount  as crm_amount   FROM `pogstone_authnet_messages` v
+  m.x_subscription_id , m.x_subscription_paynum , recur.amount  as crm_amount   FROM $messages_table_name v
 join pogstone_authnet_messages m ON v.x_trans_id = m.x_trans_id AND m.x_type IN ('auth_capture', 'credit', 'capture_only' )
 LEFT JOIN civicrm_contribution c ON m.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id
 LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = m.x_subscription_id
@@ -457,18 +486,36 @@ LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id L
 where v.x_type = 'void' and v.x_response_code = '1'
 AND m.x_response_code = '1'
 AND c.contribution_status_id IN  ( '1', '2', '5', '6')
-AND m.message_date >= '$start_date'";
+AND m.message_date >= '$start_date'
+AND (msgs.processed IS NULL OR msgs.processed = %1)
+  ";
+
+    $dao_params = array(
+      1 => array($timestamp, 'String'),
+    );
 
     // The user voided (ie cancelled) the transaction at Authorize.net on the same business day as the original transaction.
     // This means the original transaction is never settled. The original transaction could be 'auth_capture', 'credit' or 'capture_only'
     //      print "<hr><br><br>sql for messages that were voided: <br>".$sql."<br>";
-    $dao = & CRM_Core_DAO::executeQuery($sql, CRM_Core_DAO::$_nullArray);
+    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
 
     while ($dao->fetch()) {
       $contribution_id = $dao->contribution_id;
       $contact_id = $dao->contact_id;
       // print "<Br><br>Have a VOID for contrib id: ".$contribution_id." contact id: ".$contact_id;
       // Update the existing contribution to have a "cancelled" status
+
+      // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
+      $sql = "
+        UPDATE $messages_table_name
+        SET processed = %1
+        WHERE id = %2
+      ";
+      $dao_params = array(
+        1 => array($timestamp, 'String'),
+        2 => array($dao->id, 'Int'),
+      );
+      CRM_Core_DAO::executeQuery($sql, $dao_params);
     }
 
     $dao->free();
