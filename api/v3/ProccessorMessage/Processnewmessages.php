@@ -95,13 +95,13 @@ function handle_the_messages() {
 
     if ($cur_type == "iATS") {
       $messages_table_name = 'pogstone_iats_messages';
-      $sql = " SELECT    msgs.id, msg.transaction_id as transaction_id ,
+      $sql = " SELECT    msg.id, msg.transaction_id as transaction_id ,
      msg.trans_date,
      msg.recur_id as crm_recur_id  , msg.payment_instrument_id
     FROM $messages_table_name msg
     LEFT JOIN civicrm_contribution c ON msg.transaction_id = c.trxn_id
     WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL
-    AND msgs.processed IS NULL
+    AND msg.processed IS NULL
     ";
     }
     elseif ($cur_type == "PayPal") {
@@ -487,7 +487,7 @@ where v.x_type = 'void' and v.x_response_code = '1'
 AND m.x_response_code = '1'
 AND c.contribution_status_id IN  ( '1', '2', '5', '6')
 AND m.message_date >= '$start_date'
-AND (msgs.processed IS NULL OR msgs.processed = %1)
+AND (m.processed IS NULL OR m.processed = %1)
   ";
 
     $dao_params = array(
