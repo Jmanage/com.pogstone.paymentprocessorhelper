@@ -12,6 +12,7 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
 	
 	
 	$new_table_sql[] = "CREATE TABLE IF NOT EXISTS `pogstone_authnet_messages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
   `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
   `rec_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
@@ -61,6 +62,8 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
   `x_subscription_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
   `x_subscription_paynum` int(11) NOT NULL,
   `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+  `processed` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
   KEY `x_subscription_id` (`x_subscription_id`(255)),
   KEY `x_trans_id` (`x_trans_id`(255)),
   KEY `message_date` (`message_date`)
@@ -116,8 +119,22 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
   `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
   `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
   `civicrm_processed` int(11) NOT NULL,
+  `processed` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;";
+
+  $new_table_sql[] = "CREATE TABLE `pogstone_iats_messages` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `transaction_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+    `invoice_id` varchar(200) COLLATE utf8_unicode_ci NOT NULL,
+    `trans_date` date NOT NULL,
+    `recur_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+    `payment_instrument_id` varchar(5) COLLATE utf8_unicode_ci NOT NULL,
+    `trans_type` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+    `trans_amount` decimal(20,2) DEFAULT NULL,
+    `processed` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
 
   foreach($new_table_sql as $cur_sql){
   		$dao  =  & CRM_Core_DAO::executeQuery( $cur_sql,    CRM_Core_DAO::$_nullArray ) ;
