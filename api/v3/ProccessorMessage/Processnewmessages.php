@@ -319,7 +319,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
   if ($cur_type == "AuthNet") {
     $messages_table_name = 'pogstone_authnet_messages';
 
-    $sql = " SELECT concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` ,
+    $sql = " SELECT msgs.id, concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` ,
             date_format(message_date, '%Y-%m-%d'  ) as message_date , `x_type` as trans_type ,
            x_amount as message_amount,
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
@@ -442,15 +442,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           }
 
           
-          $result = civicrm_api('Contribution', 'create', $contrib_params);
-          if ($result[is_error] == 1) {
-
-            //print "<br>ERROR creating contribution: ";
-            //print "<br>params to api: ";
-            //print_r( $contrib_params);
-            //print "<br>API result: ";
-            //print_r( $result);
-          }
+          $result = civicrm_api3('Contribution', 'create', $contrib_params);
         }
         
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
