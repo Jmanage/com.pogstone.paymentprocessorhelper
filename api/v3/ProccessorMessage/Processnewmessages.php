@@ -896,17 +896,17 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
     $recur_completed_num = intval($recur_completed_contribution_count);
     $recur_expected_num = intval($recur_expected_contribution_count);
 
-    if ($recur_expected_num <> 0 && $recur_completed_num == $recur_expected_num) {
-      $new_recur_status = "1"; // completed.
+    if ($recur_expected_num <> 0 && $recur_completed_num >= $recur_expected_num) {
+      $new_recur_status = 1; // completed.
     }
     else if ($recur_completed_num > 0) {
-      $new_recur_status = "5"; // In progress
+      $new_recur_status = 5; // In progress
     }
   }
   else if (is_numeric($recur_completed_contribution_count)) {
     $recur_completed_num = intval($recur_completed_contribution_count);
     if ($recur_completed_num > 0) {
-      $new_recur_status = "5"; // In progress
+      $new_recur_status = 5; // In progress
     }
   }
 
