@@ -824,29 +824,19 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   }
   else if ($first_contrib_status == "2") {
     // Update existing first contribution record staus from pending to complete
-    Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id)");
-    Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
+    // This typically happens for recurring contributions, where the first contribution
+    // will be set as 'pending' until the IPN arrives ~24h later.
+    Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id), using Contribution.CompleteTransaction");
+    // Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
 
-    if (strlen($first_contrib_id) > 0) {
-      // Create a new contribution record based on data from the first contribution record.
-      $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
-      $contribution_completed = $rtn_code;
-
-      if ($rtn_code == true) {
-        // delete original pending contribution
-        // $first_contrib_id
-        $params = array(
-          'version' => 3,
-          'sequential' => 1,
-          'id' => $first_contrib_id,
-        );
-        $result = civicrm_api('Contribution', 'delete', $params);
-        // print "<br>Result from deleting the pending contribution:<br>";
-        // print_r($result);
-      }
+    if ($first_contrib_id) {
+      civicrm_api3('contribution', 'completetransaction', array(
+        'id' => $first_contrib_id,
+        'trxn_id' => $trxn_id,
+      ));
     }
     else {
-      Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for pending contribution) is blank");
+      Civi::log()->warning("Error: For crm_recur_id [$crm_recur_id]: First contribution id (for pending contribution) is blank");
     }
   }
   else {
