@@ -1090,6 +1090,7 @@ function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_i
       'sequential' => 1,
       'entity_table' => 'civicrm_contribution',
       'entity_id' => $new_contrib_id,
+      'contribution_id' => $new_contrib_id,
       'price_field_id' => $original_line_item['price_field_id'],
       'label' => $original_line_item['label'],
       'qty' => $original_line_item['qty'],
