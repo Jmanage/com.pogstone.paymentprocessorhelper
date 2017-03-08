@@ -5,143 +5,149 @@
  */
 class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upgrader_Base {
 
-  // By convention, functions that look like "function upgrade_NNNN()" are
-  // upgrade tasks. They are executed in order (like Drupal's hook_update_N).
   public function install() {
-  	$new_table_sql = array();
-	
-	
-	$new_table_sql[] = "CREATE TABLE IF NOT EXISTS `pogstone_authnet_messages` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `rec_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `x_response_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_response_reason_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_response_reason_text` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `x_avs_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_auth_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_trans_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_method` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_card_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_account_number` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_first_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_last_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_company` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `x_address` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_city` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_state` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_zip` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_country` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_phone` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_fax` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_email` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `x_invoice_num` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_description` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `x_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_cust_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_first_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_last_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_company` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_address` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_city` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_state` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_zip` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_ship_to_country` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_amount` decimal(12,2) NOT NULL,
-  `x_tax` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_duty` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_freight` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_tax_exempt` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_po_num` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_MD5_Hash` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_cvv2_resp_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_cavv_response` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_test_request` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_subscription_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `x_subscription_paynum` int(11) NOT NULL,
-  `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
-  `processed` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `x_subscription_id` (`x_subscription_id`(255)),
-  KEY `x_trans_id` (`x_trans_id`(255)),
-  KEY `message_date` (`message_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+    // These were split out because not all sites had the required tables,
+    // which made the 4300 upgrade difficult.
+    $this->_install_authnet();
+    $this->_install_iats();
+    $this->_install_paypal();
+  }
 
-  $new_table_sql[] = "CREATE TABLE IF NOT EXISTS `pogstone_paypal_messages` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `rec_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `mc_gross` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `mc_fee` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `txn_id` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `recurring_payment_id` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `amount` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_date` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_status` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `first_name` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `last_name` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `payer_email` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
-  `txn_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `period_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_fee` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_gross` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `currency_code` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `mc_currency` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `outstanding_balance` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `next_payment_date` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `protection_eligibility` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_cycle` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `tax` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payer_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `product_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `charset` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `rp_invoice_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `notify_version` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `amount_per_cycle` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `payer_status` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `business` varchar(500) COLLATE utf8_unicode_ci NOT NULL,
-  `verify_sign` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `initial_payment_amount` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `profile_status` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `payment_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `receiver_email` varchar(500) COLLATE utf8_unicode_ci NOT NULL,
-  `receiver_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `residence_country` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `receipt_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `transaction_subject` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `shipping` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-  `product_type` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `time_created` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-  `ipn_track_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
-  `civicrm_processed` int(11) NOT NULL,
-  `processed` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;";
+  private function _install_authnet() {
+    $sql = "CREATE TABLE IF NOT EXISTS `pogstone_authnet_messages` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `rec_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      `x_response_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_response_reason_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_response_reason_text` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `x_avs_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_auth_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_trans_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_method` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_card_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_account_number` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_first_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_last_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_company` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `x_address` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_city` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_state` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_zip` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_country` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_phone` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_fax` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_email` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `x_invoice_num` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_description` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `x_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_cust_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_first_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_last_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_company` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_address` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_city` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_state` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_zip` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_ship_to_country` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_amount` decimal(12,2) NOT NULL,
+      `x_tax` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_duty` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_freight` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_tax_exempt` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_po_num` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_MD5_Hash` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_cvv2_resp_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_cavv_response` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_test_request` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_subscription_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `x_subscription_paynum` int(11) NOT NULL,
+      `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+      `processed` datetime DEFAULT NULL,
+      PRIMARY KEY (`id`),
+      KEY `x_subscription_id` (`x_subscription_id`(255)),
+      KEY `x_trans_id` (`x_trans_id`(255)),
+      KEY `message_date` (`message_date`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
 
-  $new_table_sql[] = "CREATE TABLE `pogstone_iats_messages` (
-    `id` int(11) NOT NULL AUTO_INCREMENT,
-    `transaction_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-    `invoice_id` varchar(200) COLLATE utf8_unicode_ci NOT NULL,
-    `trans_date` date NOT NULL,
-    `recur_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
-    `payment_instrument_id` varchar(5) COLLATE utf8_unicode_ci NOT NULL,
-    `trans_type` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-    `trans_amount` decimal(20,2) DEFAULT NULL,
-    `processed` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+    CRM_Core_DAO::executeQuery($sql);
+  }
 
-  foreach($new_table_sql as $cur_sql){
-  		$dao  =  & CRM_Core_DAO::executeQuery( $cur_sql,    CRM_Core_DAO::$_nullArray ) ;
-		$dao->free();
-  	
-  	}
-  	
+  private function _install_iats() {
+    $sql = "CREATE TABLE `pogstone_iats_messages` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `transaction_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `invoice_id` varchar(200) COLLATE utf8_unicode_ci NOT NULL,
+      `trans_date` date NOT NULL,
+      `recur_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_instrument_id` varchar(5) COLLATE utf8_unicode_ci NOT NULL,
+      `trans_type` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `trans_amount` decimal(20,2) DEFAULT NULL,
+      `processed` datetime DEFAULT NULL,
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+
+    CRM_Core_DAO::executeQuery($sql);
+  }
+
+  private function _install_paypal() {
+    $sql = "CREATE TABLE IF NOT EXISTS `pogstone_paypal_messages` (
+      `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+      `rec_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `mc_gross` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `mc_fee` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `txn_id` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `recurring_payment_id` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `amount` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_date` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_status` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `first_name` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `last_name` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `payer_email` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
+      `txn_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `period_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_fee` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_gross` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `currency_code` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `mc_currency` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `outstanding_balance` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `next_payment_date` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `protection_eligibility` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_cycle` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `tax` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payer_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `product_name` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `charset` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `rp_invoice_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `notify_version` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `amount_per_cycle` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `payer_status` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `business` varchar(500) COLLATE utf8_unicode_ci NOT NULL,
+      `verify_sign` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `initial_payment_amount` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `profile_status` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `payment_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `receiver_email` varchar(500) COLLATE utf8_unicode_ci NOT NULL,
+      `receiver_id` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `residence_country` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `receipt_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `transaction_subject` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `shipping` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
+      `product_type` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `time_created` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+      `ipn_track_id` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+      `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+      `message_raw` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+      `civicrm_processed` int(11) NOT NULL,
+      `processed` datetime DEFAULT NULL,
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+
+    CRM_Core_DAO::executeQuery($sql);
   }
 
   /**
@@ -152,11 +158,30 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
    */
   public function upgrade_4300() {
     $this->ctx->log->info('Applying update 4300');
-    CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_authnet_messages` ADD  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST');
-    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_authnet_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
-    CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_iats_messages` CHANGE  `row_id`  `id` INT( 11 ) NOT NULL AUTO_INCREMENT');
-    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_iats_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
-    CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_paypal_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
+
+    if (CRM_Core_DAO::checkTableExists('pogstone_authnet_messages')) {
+      CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_authnet_messages` ADD  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST');
+      CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_authnet_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
+    }
+    else {
+      $this->_install_authnet();
+    }
+
+    if (CRM_Core_DAO::checkTableExists('pogstone_iats_messages')) {
+      CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_iats_messages` CHANGE  `row_id`  `id` INT( 11 ) NOT NULL AUTO_INCREMENT');
+      CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_iats_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
+    }
+    else {
+      $this->_install_iats();
+    }
+
+    if (CRM_Core_DAO::checkTableExists('pogstone_paypal_messages')) {
+      CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_paypal_messages` ADD  `processed` DATETIME NULL DEFAULT NULL");
+    }
+    else {
+      $this->_install_paypal();
+    }
+
     return TRUE;
   } 
 
