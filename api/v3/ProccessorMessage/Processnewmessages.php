@@ -1,5 +1,7 @@
 <?php
 
+define('PROCESSNEWMESSAGES_START_DATE', '2015-01-15');
+
 /**
  * ProccessorMessage.Processnewmessages API specification (optional)
  * This is used for documentation and validation.
@@ -124,7 +126,16 @@ function handle_the_messages() {
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` , `x_type` , `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
+      FROM $messages_table_name as msgs
+        LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
+        LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+        LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+        LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+        LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
+        LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      WHERE msgs.x_response_code = '1' 
+       AND length(msgs.x_subscription_id) > 0
+       AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
        AND msgs.processed IS NULL
         ";
@@ -244,7 +255,6 @@ function handle_the_messages() {
           $processor_subscription_id = $dao->crm_recur_id;
           $payment_instrument_id = "1";  // Assume Credit Card
         }
-
         // this is the fancy new way introduced for version 4.3.x or better
         if (strlen($recur_id) > 0) {
           if (strlen($trxn_id) == 0) {
@@ -304,7 +314,7 @@ function handle_the_messages() {
  */
 
 /**
- * For messages not yet associated with a contribution, associate them.
+ * For messages not yet associated with a contribution, associate them if possible.
  *
  *
  * @param String $cur_type e.g., 'AuthNet'
@@ -314,23 +324,33 @@ function handle_the_messages() {
  *    handle any messages already processed at a time other than $timestamp.
  */
 function handle_messges_with_no_contrib($cur_type, $timestamp) {
-  $start_date = '2015-01-15';
 
   if ($cur_type == "AuthNet") {
     $messages_table_name = 'pogstone_authnet_messages';
+    $message_ids = _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp);
 
+    if (!empty($message_ids)) {
+      $msgs_id_where = "AND msgs.id NOT IN (". implode(',', $message_ids) .")";
+    }
     $sql = " SELECT msgs.id, concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` ,
             date_format(message_date, '%Y-%m-%d'  ) as message_date , `x_type` as trans_type ,
            x_amount as message_amount,
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` ,  `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      FROM $messages_table_name as msgs
+        LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
+        LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+        LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+        LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+        LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
+        LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
        WHERE c.id IS NULL
-       AND date(msgs.message_date) >= '$start_date'
-       AND x_trans_id <> '0'
-       AND x_type IN ( 'auth_capture', 'capture_only',  'credit' )
-       AND (msgs.processed IS NULL OR msgs.processed = %1)
+        AND date(msgs.message_date) >= '". PROCESSNEWMESSAGES_START_DATE ."'
+        AND x_trans_id <> '0'
+        AND x_type IN ( 'auth_capture', 'capture_only',  'credit' )
+        AND (msgs.processed IS NULL OR msgs.processed = %1)
+        $msgs_id_where
         ";
 
     $dao_params = array(
@@ -338,7 +358,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     );
 
     //  sql for messages missing a contribution:
-    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+    $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
     while ($dao->fetch()) {
 
       $trans_id = $dao->x_trans_id;
@@ -478,7 +498,7 @@ LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id L
 where v.x_type = 'void' and v.x_response_code = '1'
 AND m.x_response_code = '1'
 AND c.contribution_status_id IN  ( '1', '2', '5', '6')
-AND m.message_date >= '$start_date'
+AND m.message_date >= '". PROCESSNEWMESSAGES_START_DATE ."'
 AND (m.processed IS NULL OR m.processed = %1)
   ";
 
@@ -489,7 +509,7 @@ AND (m.processed IS NULL OR m.processed = %1)
     // The user voided (ie cancelled) the transaction at Authorize.net on the same business day as the original transaction.
     // This means the original transaction is never settled. The original transaction could be 'auth_capture', 'credit' or 'capture_only'
     //      print "<hr><br><br>sql for messages that were voided: <br>".$sql."<br>";
-    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+    $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
 
     while ($dao->fetch()) {
       $contribution_id = $dao->contribution_id;
@@ -690,7 +710,7 @@ function OLDfixRecurringWithNoContribs() {
   AND r.contribution_status_id NOT IN ( 1, 3)
   GROUP BY r.id ";
 
-  $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
+  $dao = CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
 
     $recur_id = $dao->id;
@@ -781,7 +801,7 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
     $insert_sql_ft = "INSERT INTO civicrm_entity_financial_trxn ( entity_table, entity_id, financial_trxn_id, amount )
            VALUES( 'civicrm_financial_item', " . $financial_item_id . ", " . $crm_trxn_id . " , " . $line_item_data['line_total'] . " )  ";
 
-    $dao_ft = & CRM_Core_DAO::executeQuery($insert_sql_ft, CRM_Core_DAO::$_nullArray);
+    $dao_ft = CRM_Core_DAO::executeQuery($insert_sql_ft, CRM_Core_DAO::$_nullArray);
     $dao_ft->free();
   }
 }
@@ -1229,4 +1249,83 @@ function getContributionAPINames() {
   }
 
   return $all_api_names;
+}
+
+/**
+ * Scan authorize.net messages table for unprocessed messages indicating failure
+ * of the first transaction in a recurring contribution. For each one found,
+ * set the status to 'Failed' for both the contribution and its corresponding
+ * contribution_recur entity; also mark the message as processed.
+ *
+ * @param String $timestamp A mysql datetime string. Messages may have already
+ *    been processed at $timestamp by handle_the_messages(), but this function
+ *    will handle them once more for its own purposes; however it will not
+ *    handle any messages already processed at a time other than $timestamp.
+ * @return Array of ids for messages processed in this function.
+ */
+function _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp) {
+  $msg_ids = array();
+  $messages_table_name = 'pogstone_authnet_messages';
+  // Any Authorize.net 'declined' codes (referecne http://developer.authorize.net/api/reference/dist/json/responseCodes.json):
+  $declined_codes = "2, 3, 4, 27, 41, 44, 45, 65, 141, 145, 165, 191, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 250, 251, 254, 'E00118'";
+  $sql = "
+    SELECT
+      ctrb.id as contribution_id,
+      ctrb.contribution_recur_id,
+      ctrb.contact_id,
+      msgs.id
+    FROM
+      pogstone_authnet_messages msgs
+      -- Join to the contribution record based on invoice_num/contribution.id
+      INNER JOIN civicrm_contribution ctrb ON ctrb.id = msgs.x_invoice_num
+      -- Join any other completed contributions (payments) having the same
+      -- recuring_contribution_id; since this is a left join, we can limit to
+      -- rows where this is NULL, in order to find records in ctrb that have
+      -- no such matching records.
+      LEFT JOIN civicrm_contribution recur_ctrb
+        ON recur_ctrb.contribution_recur_id = ctrb.contribution_recur_id
+        AND recur_ctrb.id <> ctrb.id
+        AND recur_ctrb.contribution_status_id = 1
+    WHERE
+      1
+      AND ctrb.contribution_recur_id IS NOT NULL -- is part of a recurring contribution.
+      AND recur_ctrb.id IS NULL -- has no completed payments in same recurring contribution.
+      AND msgs.x_response_code IN ($declined_codes) -- failed at Authorize.net.
+      AND (msgs.processed IS NULL OR msgs.processed = %1) -- message hasn't been processed or is just recently processed.
+      AND date(msgs.message_date) >= %2 -- not sure why this date check is important.
+  ";
+  $dao_params = array(
+    1 => array($timestamp, 'String'),
+    2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
+  );
+
+  $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
+  while ($dao->fetch()) {
+    // Mark the contribution (payment) as Failed.
+    $result = civicrm_api3('Contribution', 'create', array(
+      'id' => $dao->contribution_id,
+      'contribution_status_id' => 'Failed',
+    ));
+    // Mark the recurring contribution as Failed.
+    $result = civicrm_api3('ContributionRecur', 'create', array(
+      'id' => $dao->contribution_recur_id,
+      'contribution_status_id' => 'Failed',
+    ));
+
+    $msg_ids[] = $dao->id;
+
+    // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
+    $sql = "
+      UPDATE $messages_table_name
+      SET processed = %1
+      WHERE id = %2
+    ";
+    $dao_params = array(
+      1 => array($timestamp, 'String'),
+      2 => array($dao->id, 'Int'),
+    );
+    CRM_Core_DAO::executeQuery($sql, $dao_params);
+  }
+
+  return $msg_ids;
 }
