@@ -256,7 +256,6 @@ function handle_the_messages() {
           $processor_subscription_id = $dao->crm_recur_id;
           $payment_instrument_id = "1";  // Assume Credit Card
         }
-
         // this is the fancy new way introduced for version 4.3.x or better
         if (strlen($recur_id) > 0) {
           if (strlen($trxn_id) == 0) {
@@ -316,7 +315,7 @@ function handle_the_messages() {
  */
 
 /**
- * For messages not yet associated with a contribution, associate them.
+ * For messages not yet associated with a contribution, associate them if possible.
  *
  *
  * @param String $cur_type e.g., 'AuthNet'
@@ -328,6 +327,7 @@ function handle_the_messages() {
 function handle_messges_with_no_contrib($cur_type, $timestamp) {
 
   if ($cur_type == "AuthNet") {
+    $messages_table_name = 'pogstone_authnet_messages';
     $message_ids = _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp);
 
     if (!empty($message_ids)) {
@@ -1252,26 +1252,29 @@ function getContributionAPINames() {
   return $all_api_names;
 }
 
+/**
+ * Scan authorize.net messages table for unprocessed messages indicating failure
+ * of the first transaction in a recurring contribution. For each one found,
+ * set the status to 'Failed' for both the contribution and its corresponding
+ * contribution_recur entity; also mark the message as processed.
+ *
+ * @param String $timestamp A mysql datetime string. Messages may have already
+ *    been processed at $timestamp by handle_the_messages(), but this function
+ *    will handle them once more for its own purposes; however it will not
+ *    handle any messages already processed at a time other than $timestamp.
+ * @return Array of ids for messages processed in this function.
+ */
 function _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp) {
-  // For some messages, we don't want to create contribution records -- this is true
-  // for cases in which no previous recurring payments have been processed,
-  // and the first recurring payment is failed; in such cases, we should
-  // change the parent contribution status to 'canceled'.
-  //
-  // How to identify those cases?
-  // If a failed transaction message is found, and it's tied to a contribution
-  // which a) is recurring AND b) has no completed recurring payments, that's
-  // the case we're looking for. In that case, we should set the status to
-  // "failed" (status_id=4) for both the Contribution and ContributionRecur
-  // entities.
-  //
+  $msg_ids = array();
   $messages_table_name = 'pogstone_authnet_messages';
+  // Any Authorize.net 'declined' codes (referecne http://developer.authorize.net/api/reference/dist/json/responseCodes.json):
+  $declined_codes = "2, 3, 4, 27, 41, 44, 45, 65, 141, 145, 165, 191, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 250, 251, 254, 'E00118'";
   $sql = "
     SELECT
       ctrb.id as contribution_id,
       ctrb.contribution_recur_id,
       ctrb.contact_id,
-      msgs.*
+      msgs.id
     FROM
       pogstone_authnet_messages msgs
       INNER JOIN civicrm_contribution ctrb ON ctrb.id = msgs.x_invoice_num
@@ -1283,18 +1286,47 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
       1
       AND ctrb.contribution_recur_id IS NOT NULL
       AND recur_ctrb.id IS NULL
-      AND msgs.x_response_code = 2
+      AND msgs.x_response_code IN ($declined_codes)
       AND (msgs.processed IS NULL OR msgs.processed = %1)
-      AND date(msgs.message_date) >= %2'
+      AND date(msgs.message_date) >= %2
   ";
   $dao_params = array(
     1 => array($timestamp, 'String'),
     2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
   );
 
-  $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+  // Get failed contribution status ID (don't assume it).
+  $result = civicrm_api3('OptionValue', 'getsingle', array(
+    'option_group_id' => "contribution_status",
+    'name' => "Failed",
+  ));
+  $failed_contribution_status_id = $result['value'];
+
+  $dao = &CRM_Core_DAO::executeQuery($sql, $dao_params);
   while ($dao->fetch()) {
-    dsm($dao, 'dao');
+    $result = civicrm_api3('Contribution', 'create', array(
+      'id' => $dao->contribution_id,
+      'contribution_status_id' => $failed_contribution_status_id,
+    ));
+    $result = civicrm_api3('ContributionRecur', 'create', array(
+      'id' => $dao->contribution_recur_id,
+      'contribution_status_id' => $failed_contribution_status_id,
+    ));
+
+    $msg_ids[] = $dao->id;
+
+    // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
+    $sql = "
+      UPDATE $messages_table_name
+      SET processed = %1
+      WHERE id = %2
+    ";
+    $dao_params = array(
+      1 => array($timestamp, 'String'),
+      2 => array($dao->id, 'Int'),
+    );
+    CRM_Core_DAO::executeQuery($sql, $dao_params);
   }
 
+  return $msg_ids;
 }
