@@ -460,7 +460,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $dao->free();
 
     // Now handle VOIDs
-    $sql = "SELECT c.id as contribution_id, con.id as contact_id,  c.contribution_status_id,   concat( m.x_last_name, ',' , m.x_first_name) as sort_name , m.civicrm_recur_id , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, m.rec_type , date_format(m.message_date, '%Y-%m-%d'  ) as message_date , m.x_type as trans_type ,
+    $sql = "SELECT c.id as contribution_id, con.id as contact_id,  c.contribution_status_id,   concat( m.x_last_name, ',' , m.x_first_name) as sort_name , m.civicrm_recur_id , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, m.id, m.rec_type , date_format(m.message_date, '%Y-%m-%d'  ) as message_date , m.x_type as trans_type ,
            m.x_amount as message_amount,
            m.x_response_code , m.x_response_reason_code , m.x_response_reason_text , m.x_avs_code , m.x_auth_code , m.x_trans_id ,
      m.x_method , m.x_card_type , m.x_account_number , m.x_first_name, m.x_last_name , m.x_company , m.x_address, m.x_city , m.x_state , m.x_zip,
