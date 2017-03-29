@@ -815,8 +815,13 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   if ($first_contrib_status == "1") {
     if (strlen($first_contrib_id) > 0) {
       // Create a new contribution record based on data from the first contribution record.
-      $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
-      $contribution_completed = $rtn_code;
+      // This should also send the receipt if the contribution page was configured to send receipts,
+      // or if it is a backend contribution where the option to send a receipt was enabled.
+      $result = civicrm_api3('Contribution', 'repeattransaction', array(
+        'original_contribution_id' => $first_contrib_id,
+        'contribution_status_id' => 'Pending',
+        'contribution_recur_id' => $crm_recur_id,
+      ));
     }
     else {
       Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank");
@@ -983,144 +988,6 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
   else {
     Civi::log()->warning("ProccessorMessage.Processnewmessages: Error: More than one pending contribution found. This is invalid.");
   }
-}
-
-function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id) {
-  $rtn_code = false;
-
-  // Get the first completed contribution ID from the subscription. Will use the details
-  // to create the lastest contribution. Only difference should be date, and transaction ID.
-
-  $base_result = civicrm_api('Contribution', 'get', array('version' => 3, 'sequential' => 1, 'id' => $base_contrib_id));
-
-  if ($base_result['is_error'] <> 0) {
-    Civi::log()->warning('Error calling Contribution.get API: ' . $base_result['error_message']);
-    return $rtn_code;
-  }
-
-  // need to get all the line items
-  $lineitem_result = civicrm_api('LineItem', 'get', array(
-    'version' => 3,
-    'sequential' => 1,
-    'entity_table' => 'civicrm_contribution',
-    'entity_id' => $base_contrib_id,
-  ));
-
-  if ($lineitem_result['is_error'] <> 0) {
-    Civi::log()->warning('Error calling LineItem.get API: ' . $lineitem_result['error_message']);
-    return $rtn_code;
-  }
-
-  $new_contrib_tmp = $base_result['values'][0];
-
-  // Need to get custom data values from contribution.
-  $tmp_custom_data_api_names = getContributionAPINames();
-
-  //  print "<br>Contribution parms from Base:<br>";
-  //  print_r( $new_contrib_tmp ) ;
-  $source_tmp = 'automated payment';
-  $skipLineItem_parm = "1";
-
-  //  new line item parm:
-  // 'api.line_item.create' => $line_items,
-  // TODO: Get payment instrument ID from payment processor type
-  // $payment_instrument_id = "1";  // 1 = credit card, 2 = debit card (used by iATS for ACH/DirectDebit)
-
-  $new_contrib_params = array(
-    'version' => 3,
-    'sequential' => 1,
-    'financial_type_id' => $new_contrib_tmp['financial_type_id'],
-    'contact_id' => $new_contrib_tmp['contact_id'],
-    'skipLineItem' => $skipLineItem_parm,
-    'payment_instrument_id' => $payment_instrument_id,
-    'total_amount' => $new_contrib_tmp['total_amount'],
-    'trxn_id' => $trxn_id,
-    'contribution_recur_id' => $new_contrib_tmp['contribution_recur_id'],
-    'currency' => $new_contrib_tmp['currency'],
-    //'fee_amount' => $new_contrib_tmp['fee_amount'],
-    //'net_amount' => $new_contrib_tmp['net_amount'],
-    'contribution_campaign_id' => $new_contrib_tmp['contribution_campaign_id'],
-    'non_deductible_amount' => $new_contrib_tmp['non_deductible_amount'],
-    'contribution_page_id' => $new_contrib_tmp['contribution_page_id'],
-    'source' => $source_tmp,
-    'honor_contact_id' => $new_contrib_tmp['honor_contact_id'],
-    'honor_type_id' => $new_contrib_tmp['honor_type_id'],
-    'contribution_status_id' => 1,
-    'receive_date' => $trxn_receive_date,
-  );
-
-  // Deal with custom data values
-  if (is_array($tmp_custom_data_api_names)) {
-    foreach ($tmp_custom_data_api_names as $cur_api_name) {
-      $new_contrib_params[$cur_api_name] = $new_contrib_tmp[$cur_api_name];
-    }
-  }
-
-  if (strlen($new_contrib_params['non_deductible_amount']) == 0) {
-    unset($new_contrib_params['non_deductible_amount']);
-  }
-
-  if (empty($trxn_id)) {
-    CRM_Core_Error::fatal('Error: trxn id CANNOT be empty, will not create contribution: ' . print_r($new_contrib_params, 1));
-  }
-
-  //$new_contrib_params['total_amount'] = $gateway_amount;
-  $new_contrib_result = civicrm_api('Contribution', 'create', $new_contrib_params);
-
-  if ($new_contrib_result['is_error'] <> 0) {
-    Civi::log()->warning("Error calling Contribution Create API: " . print_r($new_contrib_result, 1));
-    return $rtn_code;
-  }
-
-  //print "<hr><br>Called Contribution Create API: <br>";
-
-  $new_contrib_id = $new_contrib_result['id'];
-
-  // process each line item
-  $all_line_items = $lineitem_result['values'];
-  $line_item_count = $lineitem_result['count'];
-
-  foreach ($all_line_items as $original_line_item) {
-    //print "<hr><br><br>Original line item: ";
-    //print_r( $original_line_item );
-
-    // Create line items
-    $params = array(
-      'version' => 3,
-      'sequential' => 1,
-      'entity_table' => 'civicrm_contribution',
-      'entity_id' => $new_contrib_id,
-      'contribution_id' => $new_contrib_id,
-      'price_field_id' => $original_line_item['price_field_id'],
-      'label' => $original_line_item['label'],
-      'qty' => $original_line_item['qty'],
-      'unit_price' => $original_line_item['unit_price'],
-      'line_total' => $original_line_item['line_total'],
-      'participant_count' => $original_line_item['participant_count'],
-      'price_field_value_id' => $original_line_item['price_field_value_id'],
-      'financial_type_id' => $original_line_item['financial_type_id'],
-      'deductible_amount' => $original_line_item['deductible_amount'],
-    );
-
-    $li_result = civicrm_api('LineItem', 'create', $params);
-
-    if ($li_result['is_error']) {
-      // print "<br>Error calling Line Item API: <br>";
-      // print_r( $li_result);
-    }
-    else {
-      // print "<br>Called line item API: <br>";
-      // print_r( $li_result);
-      // This is needed because of bug in line item API.
-      //
-      // print_r( $new_contrib_params ) ;
-      create_needed_line_item_db_records($li_result['id'], $li_result['values'][0], $new_contrib_params);
-
-      $rtn_code = true;
-    }
-  }
-
-  return $rtn_code;
 }
 
 function getContributionAPINames() {
