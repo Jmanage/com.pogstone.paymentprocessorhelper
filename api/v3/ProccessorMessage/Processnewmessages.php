@@ -1277,25 +1277,30 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
       msgs.id
     FROM
       pogstone_authnet_messages msgs
+      -- Join to the contribution record based on invoice_num/contribution.id
       INNER JOIN civicrm_contribution ctrb ON ctrb.id = msgs.x_invoice_num
+      -- Join any other completed contributions (payments) having the same
+      -- recuring_contribution_id; since this is a left join, we can limit to
+      -- rows where this is NULL, in order to find records in ctrb that have
+      -- no such matching records.
       LEFT JOIN civicrm_contribution recur_ctrb
         ON recur_ctrb.contribution_recur_id = ctrb.contribution_recur_id
         AND recur_ctrb.id <> ctrb.id
         AND recur_ctrb.contribution_status_id = 1
     WHERE
       1
-      AND ctrb.contribution_recur_id IS NOT NULL
-      AND recur_ctrb.id IS NULL
-      AND msgs.x_response_code IN ($declined_codes)
-      AND (msgs.processed IS NULL OR msgs.processed = %1)
-      AND date(msgs.message_date) >= %2
+      AND ctrb.contribution_recur_id IS NOT NULL -- is part of a recurring contribution.
+      AND recur_ctrb.id IS NULL -- has no completed payments in same recurring contribution.
+      AND msgs.x_response_code IN ($declined_codes) -- failed at Authorize.net.
+      AND (msgs.processed IS NULL OR msgs.processed = %1) -- message hasn't been processed or is just recently processed.
+      AND date(msgs.message_date) >= %2 -- not sure why this date check is important.
   ";
   $dao_params = array(
     1 => array($timestamp, 'String'),
     2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
   );
 
-  // Get failed contribution status ID (don't assume it).
+  // Get "Failed" contribution status ID (don't assume it).
   $result = civicrm_api3('OptionValue', 'getsingle', array(
     'option_group_id' => "contribution_status",
     'name' => "Failed",
@@ -1304,10 +1309,12 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
 
   $dao = &CRM_Core_DAO::executeQuery($sql, $dao_params);
   while ($dao->fetch()) {
+    // Mark the contribution (payment) as Failed.
     $result = civicrm_api3('Contribution', 'create', array(
       'id' => $dao->contribution_id,
       'contribution_status_id' => $failed_contribution_status_id,
     ));
+    // Mark the recurring contribution as Failed.
     $result = civicrm_api3('ContributionRecur', 'create', array(
       'id' => $dao->contribution_recur_id,
       'contribution_status_id' => $failed_contribution_status_id,
