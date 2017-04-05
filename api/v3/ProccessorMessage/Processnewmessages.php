@@ -359,7 +359,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     );
 
     //  sql for messages missing a contribution:
-    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+    $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
     while ($dao->fetch()) {
 
       $trans_id = $dao->x_trans_id;
@@ -510,7 +510,7 @@ AND (m.processed IS NULL OR m.processed = %1)
     // The user voided (ie cancelled) the transaction at Authorize.net on the same business day as the original transaction.
     // This means the original transaction is never settled. The original transaction could be 'auth_capture', 'credit' or 'capture_only'
     //      print "<hr><br><br>sql for messages that were voided: <br>".$sql."<br>";
-    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+    $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
 
     while ($dao->fetch()) {
       $contribution_id = $dao->contribution_id;
@@ -674,7 +674,7 @@ function handleCancelledSubscriptions() {
   WHERE  r.contribution_status_id  = $cancelled_status_id
   AND c.contribution_status_id = $pending_status_id ";
 
-  $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
+  $dao = CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
     $contrib_id = $dao->contrib_id;
 
@@ -711,7 +711,7 @@ function OLDfixRecurringWithNoContribs() {
   AND r.contribution_status_id NOT IN ( 1, 3)
   GROUP BY r.id ";
 
-  $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
+  $dao = CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
 
     $recur_id = $dao->id;
@@ -802,7 +802,7 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
     $insert_sql_ft = "INSERT INTO civicrm_entity_financial_trxn ( entity_table, entity_id, financial_trxn_id, amount )
            VALUES( 'civicrm_financial_item', " . $financial_item_id . ", " . $crm_trxn_id . " , " . $line_item_data['line_total'] . " )  ";
 
-    $dao_ft = & CRM_Core_DAO::executeQuery($insert_sql_ft, CRM_Core_DAO::$_nullArray);
+    $dao_ft = CRM_Core_DAO::executeQuery($insert_sql_ft, CRM_Core_DAO::$_nullArray);
     $dao_ft->free();
   }
 }
@@ -966,7 +966,7 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
          SET modified_date = '" . $trxn_receive_date . "' " . $status_sql . "
           WHERE id = " . $crm_recur_id;
   // print "<br><br>Update recur sql: <br>".$update_sql;
-  $dao = & CRM_Core_DAO::executeQuery($update_sql, CRM_Core_DAO::$_nullArray);
+  $dao = CRM_Core_DAO::executeQuery($update_sql, CRM_Core_DAO::$_nullArray);
   $dao->free();
 }
 
@@ -1300,24 +1300,17 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
     2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
   );
 
-  // Get "Failed" contribution status ID (don't assume it).
-  $result = civicrm_api3('OptionValue', 'getsingle', array(
-    'option_group_id' => "contribution_status",
-    'name' => "Failed",
-  ));
-  $failed_contribution_status_id = $result['value'];
-
-  $dao = &CRM_Core_DAO::executeQuery($sql, $dao_params);
+  $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
   while ($dao->fetch()) {
     // Mark the contribution (payment) as Failed.
     $result = civicrm_api3('Contribution', 'create', array(
       'id' => $dao->contribution_id,
-      'contribution_status_id' => $failed_contribution_status_id,
+      'contribution_status_id' => 'Failed',
     ));
     // Mark the recurring contribution as Failed.
     $result = civicrm_api3('ContributionRecur', 'create', array(
       'id' => $dao->contribution_recur_id,
-      'contribution_status_id' => $failed_contribution_status_id,
+      'contribution_status_id' => 'Failed',
     ));
 
     $msg_ids[] = $dao->id;
