@@ -286,9 +286,11 @@ function handle_the_messages() {
         ";
         $dao_params = array(
           1 => array($now, 'String'),
-          2 => array($dao->id, 'Int'),
+          2 => array($dao->id, 'Positive'),
         );
         CRM_Core_DAO::executeQuery($sql, $dao_params);
+
+        Civi::log()->info("Processnewmessages: processed message #{$dao->id}.");
       }
 
       $dao->free();
@@ -333,7 +335,13 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` ,  `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      FROM $messages_table_name as msgs
+      LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
+      LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+      LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+      LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
+      LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
        WHERE c.id IS NULL
        AND date(msgs.message_date) >= '$start_date'
        AND x_trans_id <> '0'
@@ -349,6 +357,8 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
 
     while ($dao->fetch()) {
+      Civi::log()->info("Processnewmessages: handle_messges_with_no_contrib: found message #{$dao->id}.");
+
       $trans_id = $dao->x_trans_id;
       $trans_type = $dao->trans_type;
       $message_date = $dao->message_date;
@@ -384,7 +394,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
         // At this point we have a contact id $contact_id_tmp
         if ($response_code == "1") {
           // Completed transaction
-          $contribution_status_id = "1"; // CiviCRM Completed status
+          $contribution_status_id = 1; // CiviCRM Completed status
           if ($trans_type == "auth_capture" || $trans_type == "capture_only") {
             $tmp_source = "automated record-($trans_description)";
           }
@@ -639,32 +649,29 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
   return $contact_id;
 }
 
+/**
+ * If recurring contribution is cancelled, update the pending contribution to cancelled status as well.
+ */
 function handleCancelledSubscriptions() {
-  // print "<h2>Section: If recurring contribution is cancelled, then update the pending contribution to cancelled status as well. </h2>";
-  // If recurring subscription is cancelled, make sure the pending contribution is also cancelled.
-  $cancelled_status_id = "3";
+  $cancelled_status_id = 3;
+  $pending_status_id = 2;
 
-  $pending_status_id = "2";
+  $tmp_sql = "SELECT c.id as contrib_id
+    FROM civicrm_contribution_recur r join civicrm_contribution c ON r.id = c.contribution_recur_id
+    WHERE r.contribution_status_id  = $cancelled_status_id
+      AND c.contribution_status_id = $pending_status_id ";
 
-  $tmp_sql = "select c.id as contrib_id
-  FROM civicrm_contribution_recur r join civicrm_contribution c ON r.id = c.contribution_recur_id
-  WHERE  r.contribution_status_id  = $cancelled_status_id
-  AND c.contribution_status_id = $pending_status_id ";
+  $dao = CRM_Core_DAO::executeQuery($tmp_sql);
 
-  $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
     $contrib_id = $dao->contrib_id;
 
     if (strlen($contrib_id) > 0) {
-      $params = array(
-        'version' => 3,
+      $result = civicrm_api3('Contribution', 'create', [
         'sequential' => 1,
         'id' => $contrib_id,
         'contribution_status_id' => $cancelled_status_id,
-      );
-      $result = civicrm_api('Contribution', 'create', $params);
-      //print "<br>API update contrib. status result:<br>";
-      //print_r( $result);
+      ]);
     }
   }
 
@@ -784,6 +791,9 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
   }
 }
 
+/**
+ *
+ */
 function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$trxn_id, &$trxn_receive_date, &$payment_instrument_id) {
   $contribution_completed = false;
 
@@ -795,12 +805,12 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
 
   $result = civicrm_api('ContributionRecur', 'get', $params);
 
-  if ($result['is_error'] <> 0) {
+  if ($result['is_error']) {
     Civi::log()->warning("Error calling ContributionRecur Get API " . print_r($params, 1));
     return;
   }
 
-  if ($result['count'] <> "1") {
+  if ($result['count'] != 1) {
     Civi::log()->warning("Error: Could not retrieve Recurring Contribution id: " . $crm_recur_id);
     return;
   }
@@ -812,27 +822,28 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   // Get contribution_id of starting contrib.
   findFirstContributionInSubscription($log_handle, $crm_recur_id, $first_contrib_id, $first_contrib_status);
 
-  if ($first_contrib_status == "1") {
-    if (strlen($first_contrib_id) > 0) {
+  if ($first_contrib_status == 1) {
+    if ($first_contrib_id) {
       // Create a new contribution record based on data from the first contribution record.
       // This should also send the receipt if the contribution page was configured to send receipts,
       // or if it is a backend contribution where the option to send a receipt was enabled.
       $result = civicrm_api3('Contribution', 'repeattransaction', array(
         'original_contribution_id' => $first_contrib_id,
-        'contribution_status_id' => 'Pending',
+        'trxn_id' => $trxn_id,
+        'contribution_status_id' => 'Completed',
         'contribution_recur_id' => $crm_recur_id,
+        'payment_instrument_id' => $payment_instrument_id,
       ));
     }
     else {
       Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank");
     }
   }
-  else if ($first_contrib_status == "2") {
+  else if ($first_contrib_status == 2) {
     // Update existing first contribution record staus from pending to complete
     // This typically happens for recurring contributions, where the first contribution
     // will be set as 'pending' until the IPN arrives ~24h later.
     Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id), using Contribution.CompleteTransaction");
-    // Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
 
     if ($first_contrib_id) {
       civicrm_api3('contribution', 'completetransaction', array(
@@ -933,54 +944,32 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
 
 function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first_contrib_id, &$first_contrib_status) {
   // Find the 'pending' contribution record for this subscription. (Should only be one or zero)
-  $pending_status_id = "2";
-  $completed_status_id = "1";
-  $params = array(
-    'version' => 3,
+  $pending_status_id = 2;
+  $completed_status_id = 1;
+
+  $result = civicrm_api3('Contribution', 'get', [
     'sequential' => 1,
     'contribution_recur_id' => $crm_recur_id,
-    'contribution_status_id' => $pending_status_id,
-  );
-
-  $result = civicrm_api('Contribution', 'get', $params);
-
-  if ($result['is_error']) {
-    Civi::log()->warning('ERROR: issue calling Contribution Get API ' . $result['error_message']);
-    return;
-  }
+    'contribution_status_id' => 'Pending',
+  ]);
 
   if ($result['count'] == "1") {
     $first_contrib_id = $result['id'];
     $first_contrib_status = $pending_status_id;
   }
   else if ($result['count'] == "0") {
-    Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id)
-    ;
-    $params = array(
-      'version' => 3,
+    Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id);
+
+    $result = civicrm_api3('Contribution', 'get', [
       'sequential' => 1,
       'contribution_recur_id' => $crm_recur_id,
-      'contribution_status_id' => $completed_status_id,
-    );
-    $result = civicrm_api('Contribution', 'get', $params);
+      'contribution_status_id' => 'Completed',
+    ]);
 
-    // print_r( $result ) ;
-    if ($result['is_error'] <> 0) {
-      Civi::log()->warning("ProccessorMessage.Processnewmessages: ERROR: issue calling Contribution Get API:");
-
-      foreach ($result as $key => $cur) {
-        Civi::log()->warning($key . " : " . $cur);
-      }
-    }
-    else {
-      foreach ($result as $key => $cur) {
-        Civi::log()->info($key . " : " . $cur);
-      }
-
-      if ($result['count'] <> 0) {
-        $tmp_contrib_id = $result['values'][0]['contribution_id'];
-        $first_contrib_id = $tmp_contrib_id;
-      }
+    if ($result['count'] <> 0) {
+      $tmp_contrib_id = $result['values'][0]['contribution_id'];
+      $first_contrib_id = $tmp_contrib_id;
+      Civi::log()->info(" .. found oldest contribution: $first_contrib_id");
     }
 
     $first_contrib_status = $completed_status_id;
