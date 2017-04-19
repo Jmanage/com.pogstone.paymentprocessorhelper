@@ -58,12 +58,12 @@ function handle_the_messages() {
     'vendor_type' => $authnet_type,
   );
 
-  $result = civicrm_api('PaymentProcessorTypeHelper', 'get', $params);
-
+  $result = civicrm_api3('PaymentProcessorTypeHelper', 'get', $params);
   $tmp = $result['values'][0];
+
   if ($tmp['id'] == $authnet_type) {
     $bool_str = $tmp['name'];
-    $authnet_enabled = $bool_str === 'true' ? true : false;
+    $authnet_enabled = ($tmp['name'] === 'true');
   }
 
   if ($authnet_enabled) {
@@ -91,8 +91,8 @@ function handle_the_messages() {
 
   // For each processor type in use, process related messages
   $rec_count = 0;
-  foreach ($all_message_types_tocheck as $cur_type) {
 
+  foreach ($all_message_types_tocheck as $cur_type) {
     if ($cur_type == "iATS") {
       $messages_table_name = 'pogstone_iats_messages';
       $sql = " SELECT    msg.id, msg.transaction_id as transaction_id ,
@@ -124,7 +124,16 @@ function handle_the_messages() {
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` , `x_type` , `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.x_response_code = '1' AND length(msgs.x_subscription_id) > 0 AND c.id IS NULL
+      FROM $messages_table_name as msgs
+      LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
+      LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+      LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+      LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
+      LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      WHERE msgs.x_response_code = '1'
+       AND length(msgs.x_subscription_id) > 0
+       AND c.id IS NULL
        AND msgs.message_date >= '2013-03-01'
        AND msgs.processed IS NULL
         ";
@@ -176,14 +185,12 @@ function handle_the_messages() {
                AND msgs.eway_trans_type = 'payment'  ";
     }
 
-    $tmp_server_path = realpath($_SERVER['DOCUMENT_ROOT'] . '/../');
-    $filename_prefix = date('Y-m-d');
-
     $now = date('Y-m-d  H:i:s');
 
     // Store the posted values in an associative array
     $fields = array();
-    // print "<h2>Section: Find new payment processor messages and attempt to create contribution records</h2>";
+
+    // Find new payment processor messages and attempt to create contribution records
     if (strlen($sql) > 0) {
       $dao = CRM_Core_DAO::executeQuery($sql);
 
@@ -196,7 +203,6 @@ function handle_the_messages() {
         $crm_contact_name = $dao->crm_contact_name;
         $card_billingname = $dao->sort_name;
         $crm_amount = $dao->crm_amount;
-
 
         if ($cur_type == "iATS") {
           $receive_date = $dao->trans_date;
@@ -232,6 +238,7 @@ function handle_the_messages() {
           if ($tmp_crm_amount <> $tmp_trans_amount) {
             $message_valid_to_process = false;
             $message_error_text = "Transaction amount ($tmp_trans_amount) does NOT match CRM amount ($tmp_crm_amount) for this subscription";
+            Civi::log()->warning($message_error_text);
           }
         }
         else if ($cur_type == "eWay") {
@@ -260,6 +267,7 @@ function handle_the_messages() {
             if ($log_handle) {
               fwrite($log_handle, "\n Process for contact id: " . $cid . " -- Name on Card: " . $card_billingname . " -- CRM Name: " . $crm_contact_name . " crm_recur_id: " . $recur_id . " trxn id: " . $trxn_id . "  ----------------------------------------------------\n\n");
             }
+
             $rtn_code = UpdateRecurringContributionSubscription($log_handle, $recur_id, $trxn_id, $receive_date, $payment_instrument_id);
 
             // TODO: Check rtn_code to see if there was an error.
@@ -278,9 +286,11 @@ function handle_the_messages() {
         ";
         $dao_params = array(
           1 => array($now, 'String'),
-          2 => array($dao->id, 'Int'),
+          2 => array($dao->id, 'Positive'),
         );
         CRM_Core_DAO::executeQuery($sql, $dao_params);
+
+        Civi::log()->info("Processnewmessages: processed message #{$dao->id}.");
       }
 
       $dao->free();
@@ -325,7 +335,13 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
            `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
      `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
       `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` ,  `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+      FROM $messages_table_name as msgs
+      LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
+      LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+      LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+      LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
+      LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
        WHERE c.id IS NULL
        AND date(msgs.message_date) >= '$start_date'
        AND x_trans_id <> '0'
@@ -338,8 +354,10 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     );
 
     //  sql for messages missing a contribution:
-    $dao = & CRM_Core_DAO::executeQuery($sql, $dao_params);
+    $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
+
     while ($dao->fetch()) {
+      Civi::log()->info("Processnewmessages: handle_messges_with_no_contrib: found message #{$dao->id}.");
 
       $trans_id = $dao->x_trans_id;
       $trans_type = $dao->trans_type;
@@ -354,20 +372,15 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
       $recur_contribution_type = $dao->recur_contribution_type;
       $trans_description = $dao->x_description;
 
-
       //
       $msg_email = $dao->x_email;
       $msg_first_name = $dao->x_first_name;
       $msg_last_name = $dao->x_last_name;
       $message_amount = $dao->message_amount;
-      // print "<br><Hr> trans type: ".$trans_type;
-
-
 
       if ($trans_type == "auth_capture" || $trans_type == "capture_only" || $trans_type == "credit") {
         if (strlen($recur_contact_id) == 0) {
           if (strlen($x_cust_id) == 0 || ( is_int($x_cust_id) == false)) {
-
             $contact_id_tmp = get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email);
           }
           else {
@@ -378,11 +391,10 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           $contact_id_tmp = $recur_contact_id;
         }
 
-        //print "<br>At this point we have a contact id:".$contact_id_tmp;
+        // At this point we have a contact id $contact_id_tmp
         if ($response_code == "1") {
-          // completed
-          //   print "<br>completed transaction";
-          $contribution_status_id = "1"; // CiviCRM Completed status
+          // Completed transaction
+          $contribution_status_id = 1; // CiviCRM Completed status
           if ($trans_type == "auth_capture" || $trans_type == "capture_only") {
             $tmp_source = "automated record-($trans_description)";
           }
@@ -391,16 +403,12 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           }
         }
         else if ($response_code == "2" || $response_code == "3") {
-          // failed
-          //   print "<br>failed transaction";
+          // Failed transaction
           $contribution_status_id = "4"; // CiviCRM Failed status
           $tmp_source = "automated record-" . $response_code . "-" . $response_reason_code . "-" . $response_reason_text . " ($trans_description)";
         }
 
         $tmp_payment_instrument_id = "1"; // assume credit card for now
-
-
-
 
         if (strlen($recur_contribution_type) == 0) {
           // Get financial type id for "Unknown Financial";
@@ -462,7 +470,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $dao->free();
 
     // Now handle VOIDs
-    $sql = "SELECT c.id as contribution_id, con.id as contact_id,  c.contribution_status_id,   concat( m.x_last_name, ',' , m.x_first_name) as sort_name , m.civicrm_recur_id , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, m.rec_type , date_format(m.message_date, '%Y-%m-%d'  ) as message_date , m.x_type as trans_type ,
+    $sql = "SELECT c.id as contribution_id, con.id as contact_id,  c.contribution_status_id,   concat( m.x_last_name, ',' , m.x_first_name) as sort_name , m.civicrm_recur_id , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, m.id, m.rec_type , date_format(m.message_date, '%Y-%m-%d'  ) as message_date , m.x_type as trans_type ,
            m.x_amount as message_amount,
            m.x_response_code , m.x_response_reason_code , m.x_response_reason_text , m.x_avs_code , m.x_auth_code , m.x_trans_id ,
      m.x_method , m.x_card_type , m.x_account_number , m.x_first_name, m.x_last_name , m.x_company , m.x_address, m.x_city , m.x_state , m.x_zip,
@@ -641,32 +649,29 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
   return $contact_id;
 }
 
+/**
+ * If recurring contribution is cancelled, update the pending contribution to cancelled status as well.
+ */
 function handleCancelledSubscriptions() {
-  // print "<h2>Section: If recurring contribution is cancelled, then update the pending contribution to cancelled status as well. </h2>";
-  // If recurring subscription is cancelled, make sure the pending contribution is also cancelled.
-  $cancelled_status_id = "3";
+  $cancelled_status_id = 3;
+  $pending_status_id = 2;
 
-  $pending_status_id = "2";
+  $tmp_sql = "SELECT c.id as contrib_id
+    FROM civicrm_contribution_recur r join civicrm_contribution c ON r.id = c.contribution_recur_id
+    WHERE r.contribution_status_id  = $cancelled_status_id
+      AND c.contribution_status_id = $pending_status_id ";
 
-  $tmp_sql = "select c.id as contrib_id
-  FROM civicrm_contribution_recur r join civicrm_contribution c ON r.id = c.contribution_recur_id
-  WHERE  r.contribution_status_id  = $cancelled_status_id
-  AND c.contribution_status_id = $pending_status_id ";
+  $dao = CRM_Core_DAO::executeQuery($tmp_sql);
 
-  $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
     $contrib_id = $dao->contrib_id;
 
     if (strlen($contrib_id) > 0) {
-      $params = array(
-        'version' => 3,
+      $result = civicrm_api3('Contribution', 'create', [
         'sequential' => 1,
         'id' => $contrib_id,
         'contribution_status_id' => $cancelled_status_id,
-      );
-      $result = civicrm_api('Contribution', 'create', $params);
-      //print "<br>API update contrib. status result:<br>";
-      //print_r( $result);
+      ]);
     }
   }
 
@@ -718,7 +723,7 @@ function OLDfixRecurringWithNoContribs() {
  * FIXME: document me!
  */
 function create_needed_line_item_db_records($line_item_id, $line_item_data, $contrib_data) {
-  if (strlen($contrib_data['trxn_id']) == 0) {
+  if (empty($contrib_data['trxn_id'])) {
     CRM_Core_Error::fatal('create_needed_line_item_db_records: received an empty transaction ID.');
   }
 
@@ -786,6 +791,9 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
   }
 }
 
+/**
+ *
+ */
 function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$trxn_id, &$trxn_receive_date, &$payment_instrument_id) {
   $contribution_completed = false;
 
@@ -797,13 +805,12 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
 
   $result = civicrm_api('ContributionRecur', 'get', $params);
 
-  if ($result['is_error'] <> 0) {
+  if ($result['is_error']) {
     Civi::log()->warning("Error calling ContributionRecur Get API " . print_r($params, 1));
     return;
   }
 
-  if ($result['count'] <> "1") {
-    // print "<br><br>Error: Could not retrieve Recurring Contribution id: ".$crm_recur_id;
+  if ($result['count'] != 1) {
     Civi::log()->warning("Error: Could not retrieve Recurring Contribution id: " . $crm_recur_id);
     return;
   }
@@ -811,50 +818,41 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   $first_contrib_status = "";
   $first_contrib_id = "";
 
-  //   print "<br>About to check for first contrib in the subscription<br>";
-  //  print_r($result);
-  // get contrib. id of starting contrib.
+  // About to check for first contrib in the subscription
+  // Get contribution_id of starting contrib.
   findFirstContributionInSubscription($log_handle, $crm_recur_id, $first_contrib_id, $first_contrib_status);
 
-  // print "<br>Already checked for first contrib in the subscription";
-
-
-  if ($first_contrib_status == "1") {
-    if (strlen($first_contrib_id) > 0) {
+  if ($first_contrib_status == 1) {
+    if ($first_contrib_id) {
       // Create a new contribution record based on data from the first contribution record.
-
-      $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
-      $contribution_completed = $rtn_code;
+      // This should also send the receipt if the contribution page was configured to send receipts,
+      // or if it is a backend contribution where the option to send a receipt was enabled.
+      $result = civicrm_api3('Contribution', 'repeattransaction', array(
+        'original_contribution_id' => $first_contrib_id,
+        'trxn_id' => $trxn_id,
+        'contribution_status_id' => 'Completed',
+        'contribution_recur_id' => $crm_recur_id,
+        'payment_instrument_id' => $payment_instrument_id,
+      ));
     }
     else {
       Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for completed contribution) is blank");
     }
   }
-  else if ($first_contrib_status == "2") {
+  else if ($first_contrib_status == 2) {
     // Update existing first contribution record staus from pending to complete
-    Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id)");
-    Civi::log()->warning("Because API issues, will create brand new contribution based on first, then will delete the first pending");
+    // This typically happens for recurring contributions, where the first contribution
+    // will be set as 'pending' until the IPN arrives ~24h later.
+    Civi::log()->warning("Need to update first contribution record (id: $first_contrib_id), using Contribution.CompleteTransaction");
 
-    if (strlen($first_contrib_id) > 0) {
-      // Create a new contribution record based on data from the first contribution record.
-      $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
-      $contribution_completed = $rtn_code;
-
-      if ($rtn_code == true) {
-        // delete original pending contribution
-        // $first_contrib_id
-        $params = array(
-          'version' => 3,
-          'sequential' => 1,
-          'id' => $first_contrib_id,
-        );
-        $result = civicrm_api('Contribution', 'delete', $params);
-        // print "<br>Result from deleting the pending contribution:<br>";
-        // print_r($result);
-      }
+    if ($first_contrib_id) {
+      civicrm_api3('contribution', 'completetransaction', array(
+        'id' => $first_contrib_id,
+        'trxn_id' => $trxn_id,
+      ));
     }
     else {
-      Civi::log()->warning("Error: For crm_recur_id: " . $crm_recur_id . " First contribution id (for pending contribution) is blank");
+      Civi::log()->warning("Error: For crm_recur_id [$crm_recur_id]: First contribution id (for pending contribution) is blank");
     }
   }
   else {
@@ -867,52 +865,46 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
 }
 
 function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date) {
-  if (strlen($crm_recur_id) == 0) {
-    // print "<br>ERROR: crm_recur_id is a required parameter";
-    return;
+  if (empty($crm_recur_id)) {
+    CRM_Core_Error::fatal("ERROR: crm_recur_id is a required parameter for update_recurring_subscription_details().");
   }
 
   // Figure out what new recurring status should be. Either "in progress" or "completed"
   $recur_completed_contribution_count = 0;
   $recur_expected_contribution_count = 0;
+
   // Step 1: Find out how many completed payments have occured.
-  $params = array(
+  $result = civicrm_api('Contribution', 'getcount', array(
     'version' => 3,
     'sequential' => 1,
     'contribution_recur_id' => $crm_recur_id,
     'contribution_status_id' => 1,
-  );
-  $result = civicrm_api('Contribution', 'getcount', $params);
+  ));
 
   if ($result['is_error'] <> 0) {
     // print "<br>ERROR: issue calling Contribution Get API";
     // print_r ( $result );
     return;
   }
-  else {
-    // print "<br>Successfully called Contribution...getcount API";
-    //print_r($result);
-    $recur_completed_contribution_count = $result;
-    // print "<br>Completed Contributions for this recuring subscription: ".$recur_completed_contribution_count;
-  }
+
+  $recur_completed_contribution_count = $result;
 
   // Step 2: Find out how many payments wer expected
-  $params = array(
+  $result = civicrm_api('ContributionRecur', 'getsingle', array(
     'version' => 3,
     'sequential' => 1,
     'id' => $crm_recur_id,
-  );
-  $result = civicrm_api('ContributionRecur', 'getsingle', $params);
+  ));
 
   if ($result['is_error'] <> 0) {
     // print "<br>ERROR: issue calling ContributionRecur GetSingle API";
     // print_r ( $result );
     return;
   }
-  else {
-    $recur_expected_contribution_count = $result['installments'];
-    // print "<br>Expected Contributions for this recuring subscription: ".$recur_expected_contribution_count;
-  }
+
+  $recur_expected_contribution_count = $result['installments'];
+
+  Civi::log()->info("Processnewmessages [recur_id=$crm_recur_id] INFO completed contributions: $recur_completed_contribution_count, expecting: $recur_expected_contribution_count");
 
   $new_recur_status = "";
 
@@ -920,17 +912,17 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
     $recur_completed_num = intval($recur_completed_contribution_count);
     $recur_expected_num = intval($recur_expected_contribution_count);
 
-    if ($recur_expected_num <> 0 && $recur_completed_num == $recur_expected_num) {
-      $new_recur_status = "1"; // completed.
+    if ($recur_expected_num <> 0 && $recur_completed_num >= $recur_expected_num) {
+      $new_recur_status = 1; // completed.
     }
     else if ($recur_completed_num > 0) {
-      $new_recur_status = "5"; // In progress
+      $new_recur_status = 5; // In progress
     }
   }
   else if (is_numeric($recur_completed_contribution_count)) {
     $recur_completed_num = intval($recur_completed_contribution_count);
     if ($recur_completed_num > 0) {
-      $new_recur_status = "5"; // In progress
+      $new_recur_status = 5; // In progress
     }
   }
 
@@ -942,250 +934,49 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
   }
 
   $update_sql = "UPDATE civicrm_contribution_recur
-         SET modified_date = '" . $trxn_receive_date . "' " . $status_sql . "
-          WHERE id = " . $crm_recur_id;
-  // print "<br><br>Update recur sql: <br>".$update_sql;
-  $dao = & CRM_Core_DAO::executeQuery($update_sql, CRM_Core_DAO::$_nullArray);
-  $dao->free();
+    SET modified_date = '" . $trxn_receive_date . "' " . $status_sql . "
+    WHERE id = %1";
+
+  $dao = CRM_Core_DAO::executeQuery($update_sql, array(
+    1 => array($crm_recur_id, 'Positive'),
+  ));
 }
 
 function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first_contrib_id, &$first_contrib_status) {
   // Find the 'pending' contribution record for this subscription. (Should only be one or zero)
-  $pending_status_id = "2";
-  $completed_status_id = "1";
-  $params = array(
-    'version' => 3,
+  $pending_status_id = 2;
+  $completed_status_id = 1;
+
+  $result = civicrm_api3('Contribution', 'get', [
     'sequential' => 1,
     'contribution_recur_id' => $crm_recur_id,
-    'contribution_status_id' => $pending_status_id,
-  );
+    'contribution_status_id' => 'Pending',
+  ]);
 
-  $result = civicrm_api('Contribution', 'get', $params);
+  if ($result['count'] == "1") {
+    $first_contrib_id = $result['id'];
+    $first_contrib_status = $pending_status_id;
+  }
+  else if ($result['count'] == "0") {
+    Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id);
 
-  if ($result['is_error'] <> 0) {
-    // print "<br>ERROR: issue calling Contribution Get API";
-    // print_r ( $result );
+    $result = civicrm_api3('Contribution', 'get', [
+      'sequential' => 1,
+      'contribution_recur_id' => $crm_recur_id,
+      'contribution_status_id' => 'Completed',
+    ]);
+
+    if ($result['count'] <> 0) {
+      $tmp_contrib_id = $result['values'][0]['contribution_id'];
+      $first_contrib_id = $tmp_contrib_id;
+      Civi::log()->info(" .. found oldest contribution: $first_contrib_id");
+    }
+
+    $first_contrib_status = $completed_status_id;
   }
   else {
-    // [ML] Why? just debug?
-    foreach ($result as $key => $cur_tmp) {
-      if ($key == 'values') {
-        foreach ($cur_tmp as $key_j => $cur_j) {
-          foreach ($cur_j as $key_k => $cur_k) {
-            // fwrite($log_handle, "\n" . $key_k . " : " . $cur_k);
-          }
-        }
-      }
-    }
-
-    if ($result['count'] == "1") {
-      $first_contrib_id = $result['id'];
-      $first_contrib_status = $pending_status_id;
-    }
-    else if ($result['count'] == "0") {
-      Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id)
-      ;
-      $params = array(
-        'version' => 3,
-        'sequential' => 1,
-        'contribution_recur_id' => $crm_recur_id,
-        'contribution_status_id' => $completed_status_id,
-      );
-      $result = civicrm_api('Contribution', 'get', $params);
-
-      // print_r( $result ) ;
-      if ($result['is_error'] <> 0) {
-        Civi::log()->warning("ProccessorMessage.Processnewmessages: ERROR: issue calling Contribution Get API:");
-
-        foreach ($result as $key => $cur) {
-          Civi::log()->warning($key . " : " . $cur);
-        }
-      }
-      else {
-        foreach ($result as $key => $cur) {
-          Civi::log()->info($key . " : " . $cur);
-        }
-
-        if ($result['count'] <> 0) {
-          $tmp_contrib_id = $result['values'][0]['contribution_id'];
-          $first_contrib_id = $tmp_contrib_id;
-        }
-      }
-
-      $first_contrib_status = $completed_status_id;
-    }
-    else {
-      Civi::log()->warning("ProccessorMessage.Processnewmessages: Error: More than one pending contribution found. This is invalid.");
-    }
+    Civi::log()->warning("ProccessorMessage.Processnewmessages: Error: More than one pending contribution found. This is invalid.");
   }
-}
-
-function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id) {
-  $rtn_code = false;
-
-  // Get the first completed contribution ID from the subscription. Will use the details
-  // to create the lastest contribution. Only difference should be date, and transaction ID.
-
-  $base_result = civicrm_api('Contribution', 'get', array('version' => 3, 'sequential' => 1, 'id' => $base_contrib_id));
-
-  //print "<br>base contrib: ";
-  //print_r($base_result ) ;
-
-  if ($base_result['is_error'] <> 0) {
-    // print "<br>Error calling contribution get API:<br>";
-    // print_r($base_result ) ;
-
-    return $rtn_code;
-  }
-
-  // need to get all the line items
-  $lineitem_result = civicrm_api('LineItem', 'get', array('version' => 3, 'sequential' => 1,
-        'entity_table' => 'civicrm_contribution', 'entity_id' => $base_contrib_id));
-
-
-  if ($lineitem_result['is_error'] <> 0) {
-    // print "<br>Error calling LineItem get API:<br>";
-    // print_r( $lineitem_result ) ;
-    return $rtn_code;
-  }
-
-  $new_contrib_tmp = $base_result['values'][0];
-
-  // Need to get custom data values from contribution.
-  $tmp_custom_data_api_names = getContributionAPINames();
-  /*
-    //  get the first contribution in this series to help with line items and some other values
-    $initial_contribution = array();
-    $line_items = array();
-    $get = array('version'  => 3, 'contribution_recur_id' => $new_contrib_tmp['contribution_recur_id'], 'options'  => array('sort'  => ' id' , 'limit'  => 1));
-    $result = civicrm_api('contribution', 'get', $get);
-    if (!empty($result['values'])) {
-    $contribution_ids = array_keys($result['values']);
-    $get = array('version'  => 3, 'entity_table' => 'civicrm_contribution', 'entity_id' => $contribution_ids[0]);
-    $result = civicrm_api('LineItem', 'get', $get);
-    if (!empty($result['values'])) {
-    foreach($result['values'] as $initial_line_item) {
-    $line_item = array();
-    foreach(array('price_field_id','qty','line_total','unit_price','label','price_field_value_id','financial_type_id') as $key) {
-    $line_item[$key] = $initial_line_item[$key];
-    }
-    $line_items[] = $line_item;
-    }
-    }
-    }
-
-    // end of new code
-   */
-
-  //  print "<br>Contribution parms from Base:<br>";
-  //  print_r( $new_contrib_tmp ) ;
-  $source_tmp = 'automated payment';
-  $skipLineItem_parm = "1";
-
-  //  new line item parm:
-  // 'api.line_item.create' => $line_items,
-  // TODO: Get payment instrument ID from payment processor type
-  // $payment_instrument_id = "1";  // 1 = credit card, 2 = debit card (used by iATS for ACH/DirectDebit)
-
-  $new_contrib_params = array('version' => 3,
-    'sequential' => 1,
-    'financial_type_id' => $new_contrib_tmp['financial_type_id'],
-    'contact_id' => $new_contrib_tmp['contact_id'],
-    'skipLineItem' => $skipLineItem_parm,
-    'payment_instrument_id' => $payment_instrument_id,
-    'total_amount' => $new_contrib_tmp['total_amount'],
-    'trxn_id' => $trxn_id,
-    'contribution_recur_id' => $new_contrib_tmp['contribution_recur_id'],
-    'currency' => $new_contrib_tmp['currency'],
-    //'fee_amount' => $new_contrib_tmp['fee_amount'],
-    //'net_amount' => $new_contrib_tmp['net_amount'],
-    'contribution_campaign_id' => $new_contrib_tmp['contribution_campaign_id'],
-    'non_deductible_amount' => $new_contrib_tmp['non_deductible_amount'],
-    'contribution_page_id' => $new_contrib_tmp['contribution_page_id'],
-    'source' => $source_tmp,
-    'honor_contact_id' => $new_contrib_tmp['honor_contact_id'],
-    'honor_type_id' => $new_contrib_tmp['honor_type_id'],
-    'contribution_status_id' => 1,
-    'receive_date' => $trxn_receive_date);
-
-  // Deal with custom data values
-  if (is_array($tmp_custom_data_api_names)) {
-    foreach ($tmp_custom_data_api_names as $cur_api_name) {
-      $new_contrib_params[$cur_api_name] = $new_contrib_tmp[$cur_api_name];
-    }
-  }
-
-  if (strlen($new_contrib_params['non_deductible_amount']) == 0) {
-    unset($new_contrib_params['non_deductible_amount']);
-  }
-
-  if (strlen($trxn_id) == 0) {
-    //print "<h2>Error: trxn id CANNOT be empty, will not create contribution.</h2>";
-    //print_r( $new_contrib_params );
-    exit();
-  }
-
-  //$new_contrib_params['total_amount'] = $gateway_amount;
-  $new_contrib_result = civicrm_api('Contribution', 'create', $new_contrib_params);
-
-  if ($new_contrib_result['is_error'] <> 0) {
-    print "<br>Error calling Contribution Create API: <br>";
-    print_r($new_contrib_result);
-    return $rtn_code;
-  }
-
-  //print "<hr><br>Called Contribution Create API: <br>";
-  //print_r( $new_contrib_result);
-
-  $new_contrib_id = $new_contrib_result['id'];
-  //print "<br><br> new contrib id: ".$new_contrib_id;
-  // process each line item
-
-  $all_line_items = $lineitem_result['values'];
-  $line_item_count = $lineitem_result['count'];
-  // print "<br>all lines<br>";
-  // print_r( $all_line_items ) ;
-  // print "<br>line item count: ".$line_item_count;
-  foreach ($all_line_items as $original_line_item) {
-    //print "<hr><br><br>Original line item: ";
-    //print_r( $original_line_item );
-    // print "<br><br>Inside loop on line item  ";
-    // create line items:
-    $params = array(
-      'version' => 3,
-      'sequential' => 1,
-      'entity_table' => 'civicrm_contribution',
-      'entity_id' => $new_contrib_id,
-      'price_field_id' => $original_line_item['price_field_id'],
-      'label' => $original_line_item['label'],
-      'qty' => $original_line_item['qty'],
-      'unit_price' => $original_line_item['unit_price'],
-      'line_total' => $original_line_item['line_total'],
-      'participant_count' => $original_line_item['participant_count'],
-      'price_field_value_id' => $original_line_item['price_field_value_id'],
-      'financial_type_id' => $original_line_item['financial_type_id'],
-      'deductible_amount' => $original_line_item['deductible_amount'],
-    );
-
-    //print "<br><br>New line item:<br> ";
-    //print_r( $params ) ;
-    $li_result = civicrm_api('LineItem', 'create', $params);
-    if ($li_result['is_error'] <> 0) {
-      // print "<br>Error calling Line Item API: <br>";
-      // print_r( $li_result);
-    }
-    else {
-      // print "<br>Called line item API: <br>";
-      // print_r( $li_result);
-      // This is needed because of bug in line item API.
-      //
-      // print_r( $new_contrib_params ) ;
-      create_needed_line_item_db_records($li_result['id'], $li_result['values'][0], $new_contrib_params);
-      $rtn_code = true;
-    }
-  }
-
-  return $rtn_code;
 }
 
 function getContributionAPINames() {
