@@ -19,7 +19,7 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
       `civicrm_contribution_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
       `civicrm_recur_id` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
       `rec_type` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-      `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      `message_date` DATETIME NOT NULL,
       `x_response_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
       `x_response_reason_code` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
       `x_response_reason_text` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
@@ -96,7 +96,7 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
     $sql = "CREATE TABLE IF NOT EXISTS `pogstone_paypal_messages` (
       `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
       `rec_type` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
-      `message_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `message_date` DATETIME NOT NULL,
       `mc_gross` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
       `mc_fee` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
       `txn_id` varchar(800) COLLATE utf8_unicode_ci NOT NULL,
@@ -185,6 +185,26 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
     return TRUE;
   } 
 
+  /**
+   * Add an `id` primary key column to pogstone_authnet_messages.
+   *
+   * @return TRUE on success
+   * @throws Exception
+   */
+  public function upgrade_4301() {
+    $this->ctx->log->info('Applying update 4301');
+
+    if (CRM_Core_DAO::checkTableExists('pogstone_authnet_messages')) { 
+      CRM_Core_DAO::executeQuery('ALTER TABLE  `pogstone_authnet_messages` CHANGE  `message_date`  `message_date` DATETIME NOT NULL');
+    }
+
+    if (CRM_Core_DAO::checkTableExists('pogstone_paypal_messages')) {
+      CRM_Core_DAO::executeQuery("ALTER TABLE  `pogstone_paypal_messages` CHANGE  `message_date`  `message_date` DATETIME NOT NULL");
+    }
+    
+    return TRUE;
+  } 
+  
   /**
    * Example: Run an external SQL script when the module is installed
    *
@@ -290,3 +310,7 @@ class CRM_Paymentprocessorhelper_Upgrader extends CRM_Paymentprocessorhelper_Upg
   } // */
 
 }
+
+
+//ALTER TABLE  `pogstone_authnet_messages` CHANGE  `message_date`  `message_date` DATETIME NOT NULL
+//ALTER TABLE  `pogstone_paypal_messages` CHANGE  `message_date`  `message_date` DATETIME NOT NULL
