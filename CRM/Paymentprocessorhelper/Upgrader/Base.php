@@ -36,11 +36,10 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
    * Obtain a refernece to the active upgrade handler
    */
   static public function instance() {
-    if (! self::$instance) {
+    if (!self::$instance) {
       // FIXME auto-generate
       self::$instance = new CRM_Paymentprocessorhelper_Upgrader(
-        'com.pogstone.paymentprocessorhelper',
-        realpath(__DIR__ .'/../../../')
+                                                                                          'com.pogstone.paymentprocessorhelper', realpath(__DIR__ . '/../../../')
       );
     }
     return self::$instance;
@@ -104,8 +103,7 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
    */
   public function executeSqlFile($relativePath) {
     CRM_Utils_File::sourceSQLFile(
-      CIVICRM_DSN,
-      $this->extensionDir . '/' . $relativePath
+                                                                                        CIVICRM_DSN, $this->extensionDir . '/' . $relativePath
     );
     return TRUE;
   }
@@ -135,9 +133,7 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
     $args = func_get_args();
     $title = array_shift($args);
     $task = new CRM_Queue_Task(
-      array(get_class($this), '_queueAdapter'),
-      $args,
-      $title
+                                                                                        array(get_class($this), '_queueAdapter'), $args, $title
     );
     return $this->queue->createItem($task, array('weight' => -1));
   }
@@ -180,16 +176,12 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
         // note: don't use addTask() because it sets weight=-1
 
         $task = new CRM_Queue_Task(
-          array(get_class($this), '_queueAdapter'),
-          array('upgrade_' . $revision),
-          $title
+                                                                                            array(get_class($this), '_queueAdapter'), array('upgrade_' . $revision), $title
         );
         $this->queue->createItem($task);
 
         $task = new CRM_Queue_Task(
-          array(get_class($this), '_queueAdapter'),
-          array('setCurrentRevision', $revision),
-          $title
+                                                                                            array(get_class($this), '_queueAdapter'), array('setCurrentRevision', $revision), $title
         );
         $this->queue->createItem($task);
       }
@@ -202,7 +194,7 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
    * @return array(revisionNumbers) sorted numerically
    */
   public function getRevisions() {
-    if (! is_array($this->revisions)) {
+    if (!is_array($this->revisions)) {
       $this->revisions = array();
 
       $clazz = new ReflectionClass(get_class($this));
@@ -287,7 +279,7 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
   }
 
   public function onUpgrade($op, CRM_Queue_Queue $queue = NULL) {
-    switch($op) {
+    switch ($op) {
       case 'check':
         return array($this->hasPendingRevisions());
       case 'enqueue':
@@ -295,4 +287,5 @@ class CRM_Paymentprocessorhelper_Upgrader_Base {
       default:
     }
   }
+
 }
