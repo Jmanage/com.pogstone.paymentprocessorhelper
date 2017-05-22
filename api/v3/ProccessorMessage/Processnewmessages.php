@@ -32,7 +32,6 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
 
 function handle_the_messages() {
   $all_message_types_tocheck = array();
-  $ewayemailrecur_type = "eWay_Recurring";
 
   $pay_pal_type = "PayPal";
   $params = array(
@@ -72,128 +71,78 @@ function handle_the_messages() {
     $all_message_types_tocheck[] = "AuthNet";
   }
 
-  // Now check for eWay recurring (email notifications)
-  $params = array(
-    'version' => 3,
-    'sequential' => 1,
-    'vendor_type' => $ewayemailrecur_type,
-  );
-
-  $result = civicrm_api('PaymentProcessorTypeHelper', 'get', $params);
-  $tmp = $result['values'][0];
-
-  if ($tmp['id'] == $ewayemailrecur_type) {
-    $bool_str = $tmp['name'];
-    $ewayrecur_enabled = $bool_str === 'true' ? TRUE : FALSE;
-  }
-
-  if ($ewayrecur_enabled) {
-    $all_message_types_tocheck[] = "eWay";
-  }
-
   // For each processor type in use, process related messages
   $rec_count = 0;
   foreach ($all_message_types_tocheck as $cur_type) {
 
-    if ($cur_type == "iATS") {
-      $messages_table_name = 'pogstone_iats_messages';
-      $sql = " SELECT    msg.id, msg.transaction_id as transaction_id ,
-     msg.trans_date,
-     msg.recur_id as crm_recur_id  , msg.payment_instrument_id
-    FROM $messages_table_name msg
-    LEFT JOIN civicrm_contribution c ON msg.transaction_id = c.trxn_id
-    WHERE msg.payment_instrument_id IN ( '1', '2') AND c.id is NULL
-    AND msg.processed IS NULL
-    ";
-    }
-    elseif ($cur_type == "PayPal") {
+    if ($cur_type == "PayPal") {
       $messages_table_name = 'pogstone_paypal_messages';
-      $sql = "SELECT msgs.id, msgs.amount, msgs.txn_id, substr( msgs.payment_date, 10, 3 ) as payment_date_month ,
-    substr( msgs.payment_date, 14, 2 ) as payment_date_day ,
-    substr( msgs.payment_date, 18, 4 ) as payment_date_year ,
-    concat(msgs.last_name, ',' , msgs.first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date , `payment_status` ,
-      rp_invoice_id, recur.amount  as crm_amount
-      FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.txn_id = c.trxn_id LEFT JOIN civicrm_contact con ON c.contact_id = con.id LEFT JOIN civicrm_contribution_recur recur ON recur.id = (  substr( rp_invoice_id, LOCATE( '&r=' , rp_invoice_id) + 3,   ( LOCATE(
-    '&b=', rp_invoice_id ) - 3 -  (LOCATE( '&r=' , rp_invoice_id)  ) ) ) )  LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.payment_status = 'Completed' AND length(msgs.recurring_payment_id) > 0 AND c.id IS NULL
-       AND msgs.message_date >= '2013-03-01'
-       AND msgs.processed IS NULL
-       GROUP by msgs.ipn_track_id ";
+      $sql = "
+        SELECT 
+          msgs.id, 
+          msgs.txn_id, 
+          date_format(msgs.message_date, '%Y%m%d'  ) as message_date,
+          substr(msgs.payment_date, 10, 3) as payment_date_month,
+          substr(msgs.payment_date, 14, 2) as payment_date_day,
+          substr(msgs.payment_date, 18, 4) as payment_date_year,
+          recur.amount as crm_amount,
+          recur.contact_id as recur_contact_id
+        FROM 
+          $messages_table_name as msgs 
+          LEFT JOIN civicrm_contribution ctrb ON msgs.txn_id = ctrb.trxn_id 
+          LEFT JOIN civicrm_contribution_recur recur ON recur.id = (
+            substr(
+              rp_invoice_id, 
+              LOCATE( 
+                '&r=' , rp_invoice_id
+              ) + 3,
+              (
+                LOCATE(
+                  '&b=', rp_invoice_id 
+                ) - 3 -  
+                (
+                  LOCATE(
+                    '&r=' , rp_invoice_id
+                  )
+                )
+              )
+            )
+          )
+        WHERE 
+          msgs.payment_status = 'Completed' 
+          AND length(msgs.recurring_payment_id) > 0 
+          AND ctrb.id IS NULL
+          AND msgs.message_date >= '2013-03-01'
+          AND msgs.processed IS NULL
+        GROUP by msgs.ipn_track_id 
+      ";
     }
     elseif ($cur_type == "AuthNet") {
       $messages_table_name = 'pogstone_authnet_messages';
-      $sql = "SELECT msgs.id, concat(x_last_name, ',' , x_first_name) as sort_name , `civicrm_recur_id` , c.id as crm_contrib_id, c.contact_id as crm_contact_id, con.sort_name as crm_contact_name, recur.id as crm_recur_id, ct.name as contrib_type_name, recur_ct.id as recur_contribution_type , recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id, recur_contact.id as recur_contact_id, recur_contact.sort_name as recur_contact_name, `rec_type` , date_format(message_date, '%Y%m%d'  ) as message_date ,
-           x_amount as message_amount,
-           `x_response_code` , `x_response_reason_code` , `x_response_reason_text` , `x_avs_code` , `x_auth_code` , `x_trans_id` ,
-     `x_method` , `x_card_type` , `x_account_number` , `x_first_name` , `x_last_name` , `x_company` , `x_address` , `x_city` , `x_state` , `x_zip` ,
-      `x_country` , `x_phone` , `x_fax` , `x_email` , `x_invoice_num` , `x_description` , `x_type` , `x_cust_id` , `x_ship_to_first_name` , `x_ship_to_last_name` , `x_ship_to_company` , `x_ship_to_address` , `x_ship_to_city` , `x_ship_to_state` , `x_ship_to_zip` , `x_ship_to_country` , `x_amount` , `x_tax` , `x_duty` , `x_freight` , `x_tax_exempt` , `x_po_num` , `x_MD5_Hash` , `x_cvv2_resp_code` , `x_cavv_response` , `x_test_request` , `x_subscription_id` , `x_subscription_paynum` , recur.amount  as crm_amount
-      FROM $messages_table_name as msgs
-        LEFT JOIN civicrm_contribution c ON msgs.x_trans_id = c.trxn_id
-        LEFT JOIN civicrm_contact con ON c.contact_id = con.id
-        LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
-        LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
-        LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
-        LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
-      WHERE msgs.x_response_code = '1'
-       AND length(msgs.x_subscription_id) > 0
-       AND c.id IS NULL
-       AND msgs.message_date >= '2013-03-01'
-       AND msgs.processed IS NULL
-        ";
+      $sql = "
+        SELECT 
+          msgs.id, 
+          msgs.civicrm_recur_id, 
+          msgs.x_trans_id,
+          msgs.x_amount,
+          date_format(message_date, '%Y%m%d'  ) as message_date ,
+          recur.id as crm_recur_id, 
+          recur.contact_id as recur_contact_id, 
+          recur.amount  as crm_amount
+        FROM $messages_table_name as msgs
+          LEFT JOIN civicrm_contribution ctrb ON msgs.x_trans_id = ctrb.trxn_id
+          LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
+        WHERE 
+          msgs.x_response_code = '1'
+          AND length(msgs.x_subscription_id) > 0
+          AND ctrb.id IS NULL
+          AND msgs.message_date >= '2013-03-01'
+          AND msgs.processed IS NULL
+      ";
     }
-    elseif ($cur_type == "eWay") {
-      // Currently only completed eWay transactions have an amount > 0.
-      // Raw 'eway_email_date' is always in America/New York time zone. Need to adjust to the time zone of the client, such as Sydney in Australia
-      $hours_to_add = "";
-
-      $org_timezone = variable_get('pogstone_local_timezone', NULL);
-      if ($org_timezone == 'Australia/Sydney') {
-        $num_sec = 60 * 60 * 14;
-        $hours_to_add = '14 HOUR';
-      }
-      elseif ($org_timezone == 'Australia/Melbourne') {
-        $num_sec = 60 * 60 * 14;
-        $hours_to_add = '14 HOUR';
-      }
-      elseif ($org_timezone == 'Australia/Perth') {
-        $num_sec = 60 * 60 * 12;
-        $hours_to_add = '12 HOUR';
-      }
-      else {
-        print "<br>org time zone not recognized: " . $org_timezone;
-        $num_sec = 60 * 60 * 14;
-        $hours_to_add = '14 HOUR';
-      }
-
-      // field 'eway_email_date' is of type datetime
-      //$tmp_a =  $email_timestamp + $num_sec;
-      //   print "<br><br>email timestamp: ".$email_timestamp."<br> Adjusted ts: ".$tmp_a;
-      // $paymentDate = date('Ymd H:i:s', $tmp_a) ;
-      $messages_table_name = 'pogstone_eway_messages';
-      $sql = "SELECT recur.id as crm_recur_id,  msgs.eway_transaction_id,
-               DATE_ADD( `eway_email_date`,  INTERVAL " . $hours_to_add . " ) as adj_eway_email_date , `eway_currency`, `eway_amount`,
-                `eway_transaction_id`, `eway_name`, `eway_address`,
-                `eway_invoice_reference_number`, `eway_email_subject`, `eway_email_body`,
-                c.id as crm_contrib_id, c.contact_id as contact_id, contact_a.sort_name as crm_contact_name, ct.name as contrib_type_name,
-                recur.id as crm_recur_id, recur_ct.name as recur_contrib_type_name, recur.contact_id as recur_contact_id,
-                 recur_contact.id as recur_contact_id,
-                recur_contact.sort_name as recur_contact_name , recur.amount  as crm_amount
-               FROM $messages_table_name as msgs LEFT JOIN civicrm_contribution c ON msgs.eway_transaction_id = c.trxn_id
-               LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.eway_invoice_reference_number
-               LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
-               LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
-               LEFT JOIN civicrm_contact contact_a ON c.contact_id = contact_a.id
-               LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id WHERE msgs.eway_amount > 0
-               AND msgs.eway_invoice_reference_number LIKE '%(r)' AND c.id IS NULL
-               AND msgs.eway_trans_type = 'payment'  ";
-    }
-
-    $tmp_server_path = realpath($_SERVER['DOCUMENT_ROOT'] . '/../');
-    $filename_prefix = date('Y-m-d');
 
     $now = date('Y-m-d  H:i:s');
 
-    // Store the posted values in an associative array
-    $fields = array();
     // print "<h2>Section: Find new payment processor messages and attempt to create contribution records</h2>";
     if (strlen($sql) > 0) {
       $dao = CRM_Core_DAO::executeQuery($sql);
@@ -202,20 +151,12 @@ function handle_the_messages() {
         $message_valid_to_process = TRUE;
 
         $cid = $dao->recur_contact_id;
-        $contrib_type_id = $dao->recur_contribution_type;
         $recur_id = $dao->crm_recur_id;
-        $crm_contact_name = $dao->crm_contact_name;
-        $card_billingname = $dao->sort_name;
+//        $crm_contact_name = $dao->crm_contact_name;
+//        $card_billingname = $dao->sort_name;
         $crm_amount = $dao->crm_amount;
 
-        if ($cur_type == "iATS") {
-          $receive_date = $dao->trans_date;
-
-          $trxn_id = $dao->transaction_id;
-
-          $payment_instrument_id = $dao->payment_instrument_id;
-        }
-        elseif ($cur_type == "PayPal") {
+        if ($cur_type == "PayPal") {
           $date_raw_year = $dao->payment_date_year;
           $date_raw_month = $dao->payment_date_month;
           $date_raw_day = $dao->payment_date_day;
@@ -223,9 +164,9 @@ function handle_the_messages() {
           $tmp_sql_date = $date_raw_year . "-" . $date_raw_month . "-" . $date_raw_day;
 
           $receive_date = $tmp_sql_date;
-          $amount = $dao->amount;
+//          $amount = $dao->amount;
           $trxn_id = $dao->txn_id;
-          $processor_subscription_id = $dao->recurring_payment_id;
+//          $processor_subscription_id = $dao->recurring_payment_id;
           $payment_instrument_id = "1";  // Assume Credit Card
           // print "<br>Inside paypal section: amt: ".$amount;
         }
@@ -234,25 +175,15 @@ function handle_the_messages() {
           $receive_date = $dao->message_date;
           $amount = $dao->x_amount;
           $trxn_id = $dao->x_trans_id;
-          $processor_subscription_id = $dao->x_subscription_id;
+//          $processor_subscription_id = $dao->x_subscription_id;
           $payment_instrument_id = "1";  // Assume Credit Card
 
           $tmp_trans_amount = number_format($amount, 2);
           $tmp_crm_amount = number_format($crm_amount, 2);
           if ($tmp_crm_amount <> $tmp_trans_amount) {
             $message_valid_to_process = FALSE;
-            $message_error_text = "Transaction amount ($tmp_trans_amount) does NOT match CRM amount ($tmp_crm_amount) for this subscription";
+//            $message_error_text = "Transaction amount ($tmp_trans_amount) does NOT match CRM amount ($tmp_crm_amount) for this subscription";
           }
-        }
-        elseif ($cur_type == "eWay") {
-          // recur.id as crm_recur_id,  msgs.eway_transaction_id,   `eway_email_date`,
-
-          $receive_date = $dao->adj_eway_email_date;
-          $amount = $dao->eway_amount;
-
-          $trxn_id = $dao->eway_transaction_id;
-          $processor_subscription_id = $dao->crm_recur_id;
-          $payment_instrument_id = "1";  // Assume Credit Card
         }
         // this is the fancy new way introduced for version 4.3.x or better
         if (strlen($recur_id) > 0) {
@@ -266,9 +197,6 @@ function handle_the_messages() {
           }
           else {
             //  print "<h2>Process for contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id."</h2>";
-            if ($log_handle) {
-              fwrite($log_handle, "\n Process for contact id: " . $cid . " -- Name on Card: " . $card_billingname . " -- CRM Name: " . $crm_contact_name . " crm_recur_id: " . $recur_id . " trxn id: " . $trxn_id . "  ----------------------------------------------------\n\n");
-            }
             $rtn_code = UpdateRecurringContributionSubscription($log_handle, $recur_id, $trxn_id, $receive_date, $payment_instrument_id);
 
             // TODO: Check rtn_code to see if there was an error.
@@ -671,45 +599,6 @@ function handleCancelledSubscriptions() {
   $dao->free();
 }
 
-function OLDfixRecurringWithNoContribs() {
-  // Check for recurring contributions with NO associated contributions.
-  // print "<h2>Section: Look for contribution_recur records with NO associated contributions, as this prevents messages from being processed. </h2>";
-  // check payment processor type. This is only needed for Auth.net, PayPalPro, and eWAY
-  // Ignore subscriptions that are cancelled(3) or completed(1).
-  $tmp_sql = "select r.id, r.contact_id,  r.amount, r.financial_type_id as financial_type_id ,
-    r.contribution_status_id , r.campaign_id, r.start_date
-  FROM civicrm_contribution_recur r
-  JOIN civicrm_payment_processor p ON r.payment_processor_id = p.id
-  JOIN civicrm_payment_processor_type pt ON pt.id = p.payment_processor_type_id
-  LEFT JOIN civicrm_contribution c ON r.id = c.contribution_recur_id
-  WHERE c.id IS NULL
-  AND r.start_date > '2014-01-01'
-  AND pt.name IN ('PayPal', 'AuthNet', 'eWay_recurring')
-  AND r.contribution_status_id NOT IN ( 1, 3)
-  GROUP BY r.id ";
-
-  $dao = CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
-  while ($dao->fetch()) {
-
-    $recur_id = $dao->id;
-    $contact_id = $dao->contact_id;
-    $amount = $dao->amount;
-    $financial_type_id = $dao->financial_type_id;
-    //  $contribution_status_id = $dao->contribution_status_id;
-    $start_date = $dao->start_date;
-    $campaign_id = $dao->campaign_id;
-
-    //$params = array(
-    //  'version' => 3,
-    //  'sequential' => 1,
-    //  'contribution_status_id' => $cancelled_status_id,
-    //  );
-    //$result = civicrm_api('Contribution', 'create', $params);
-    //print "<br>API update contrib. status result:<br>";
-    //print_r( $result);
-  }
-  $dao->free();
-}
 
 /**
  * FIXME: document me!
@@ -1055,39 +944,9 @@ function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_i
 
   // Need to get custom data values from contribution.
   $tmp_custom_data_api_names = getContributionAPINames();
-  /*
-    //  get the first contribution in this series to help with line items and some other values
-    $initial_contribution = array();
-    $line_items = array();
-    $get = array('version'  => 3, 'contribution_recur_id' => $new_contrib_tmp['contribution_recur_id'], 'options'  => array('sort'  => ' id' , 'limit'  => 1));
-    $result = civicrm_api('contribution', 'get', $get);
-    if (!empty($result['values'])) {
-    $contribution_ids = array_keys($result['values']);
-    $get = array('version'  => 3, 'entity_table' => 'civicrm_contribution', 'entity_id' => $contribution_ids[0]);
-    $result = civicrm_api('LineItem', 'get', $get);
-    if (!empty($result['values'])) {
-    foreach($result['values'] as $initial_line_item) {
-    $line_item = array();
-    foreach(array('price_field_id','qty','line_total','unit_price','label','price_field_value_id','financial_type_id') as $key) {
-    $line_item[$key] = $initial_line_item[$key];
-    }
-    $line_items[] = $line_item;
-    }
-    }
-    }
-
-    // end of new code
-   */
-
-  //  print "<br>Contribution parms from Base:<br>";
-  //  print_r( $new_contrib_tmp ) ;
+  
   $source_tmp = 'automated payment';
   $skipLineItem_parm = "1";
-
-  //  new line item parm:
-  // 'api.line_item.create' => $line_items,
-  // TODO: Get payment instrument ID from payment processor type
-  // $payment_instrument_id = "1";  // 1 = credit card, 2 = debit card (used by iATS for ACH/DirectDebit)
 
   $new_contrib_params = array(
     'version' => 3,
