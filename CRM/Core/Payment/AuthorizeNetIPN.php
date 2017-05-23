@@ -368,10 +368,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
 
   public function pogstone_log_details() {
     // Pogstone added:
-    $now = date('Y-m-d  H:i:s');
-
-    // Flag if this is an ARB transaction. Set to false by default.
-    $arb = false;
 
     // Store the posted values in an associative array
     $fields = array();
@@ -394,7 +390,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $x_trans_id = $fields['x_trans_id'];
     $x_method = $fields['x_method'];
     $x_card_type = $fields['x_card_type'];
-
     $x_account_number = $fields['x_account_number'];
     $x_first_name = $fields['x_first_name'] ;
     $x_last_name = $fields['x_last_name'];
@@ -462,8 +457,10 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
           '$x_account_number', %3, %4, %5, %6, %7,
           '".$x_state."', '".$x_zip."', '".$x_country."', '".$x_phone."', '".$x_fax."',
            '".$x_email."', '".$x_invoice_num."', %1, '".$x_type."', '".$x_cust_id."', '".$x_ship_to_first_name."', '".$x_ship_to_last_name."', '".$x_ship_to_company."',
-           '".$x_ship_to_address."', '".$x_ship_to_city."', '".$x_ship_to_state."', '".$x_ship_to_zip."', '$x_ship_to_country', '$x_amount' , '$x_tax', '".$x_duty."', '".$x_freight."',
-           '".$x_tax_exempt."', '".$x_po_num."', '".$x_MD5_Hash."', '".$x_cvv2_resp_code."', '$x_cavv_response', '$x_test_request', '".$x_subscription_id."', '".$x_subscription_paynum."', %99);" ;
+           '".$x_ship_to_address."', '".$x_ship_to_city."', '".$x_ship_to_state."', '".$x_ship_to_zip."', '$x_ship_to_country', '$x_amount' , '$x_tax', '".$x_duty."', 
+           '".$x_freight."',
+           '".$x_tax_exempt."', '".$x_po_num."', '".$x_MD5_Hash."', '".$x_cvv2_resp_code."', '$x_cavv_response', '$x_test_request', '".$x_subscription_id."', 
+           '".$x_subscription_paynum."', %99);" ;
 
     $dao = CRM_Core_DAO::executeQuery($sql, array(
       1 => array($x_description, 'String'),
