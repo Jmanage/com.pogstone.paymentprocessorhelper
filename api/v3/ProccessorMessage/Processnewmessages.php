@@ -134,6 +134,7 @@ function handle_the_messages() {
     if (strlen($sql) > 0) {
       $dao = CRM_Core_DAO::executeQuery($sql);
 
+      // a.k.a. "FIRST PASS"
       while ($dao->fetch()) {
         $message_valid_to_process = TRUE;
 
@@ -225,6 +226,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $messages_table_name = 'pogstone_authnet_messages';
     $message_ids = _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp);
 
+    // a.k.a. "THIRD PASS"
     if (!empty($message_ids)) {
       $msgs_id_where = "AND msgs.id NOT IN (" . implode(',', $message_ids) . ")";
     }
@@ -380,25 +382,26 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $dao->free();
 
     // Now handle VOIDs
-$sql = "SELECT 
-  c.id as contribution_id,
-  con.id as contact_id,
-FROM 
-  pogstone_authnet_messages v
-  join pogstone_authnet_messages m ON v.x_trans_id = m.x_trans_id AND m.x_type IN ('auth_capture', 'credit', 'capture_only' )
-  LEFT JOIN civicrm_contribution c ON m.x_trans_id = c.trxn_id 
-  LEFT JOIN civicrm_contact con ON c.contact_id = con.id
-  LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = m.x_subscription_id
-  LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
-  LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id 
-  LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
-where 
-  v.x_type = 'void' and v.x_response_code = '1'
-  AND m.x_response_code = '1'
-  AND c.contribution_status_id IN  ( '1', '2', '5', '6')
-  AND m.message_date >= '" . PROCESSNEWMESSAGES_START_DATE . "'
-  AND (m.processed IS NULL OR m.processed = %1)
-";
+    // a.k.a, "FOURTH PASS"
+    $sql = "SELECT 
+      c.id as contribution_id,
+      con.id as contact_id,
+    FROM 
+      pogstone_authnet_messages v
+      join pogstone_authnet_messages m ON v.x_trans_id = m.x_trans_id AND m.x_type IN ('auth_capture', 'credit', 'capture_only' )
+      LEFT JOIN civicrm_contribution c ON m.x_trans_id = c.trxn_id 
+      LEFT JOIN civicrm_contact con ON c.contact_id = con.id
+      LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = m.x_subscription_id
+      LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
+      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id 
+      LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
+    where 
+      v.x_type = 'void' and v.x_response_code = '1'
+      AND m.x_response_code = '1'
+      AND c.contribution_status_id IN  ( '1', '2', '5', '6')
+      AND m.message_date >= '" . PROCESSNEWMESSAGES_START_DATE . "'
+      AND (m.processed IS NULL OR m.processed = %1)
+    ";
 
     $dao_params = array(
       1 => array($timestamp, 'String'),
@@ -1082,6 +1085,8 @@ function getContributionAPINames() {
  * of the first transaction in a recurring contribution. For each one found,
  * set the status to 'Failed' for both the contribution and its corresponding
  * contribution_recur entity; also mark the message as processed.
+ * 
+ * a.k.a. "SECOND PASS"
  *
  * @param string $timestamp A mysql datetime string. Messages may have already
  *    been processed at $timestamp by handle_the_messages(), but this function
