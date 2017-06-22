@@ -597,41 +597,28 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
   }
 
   public function pogstone_log_details() {
-    // Pogstone added:
-    $tmp_server_path = realpath($_SERVER['DOCUMENT_ROOT'] . '/../');
+    // Pogstone added:   
 
-    $filename_prefix = date('Y-m-d');
+    $this->pogstonePaypalLog(date('Y-m-d  H:i:s'));
+    $this->pogstonePaypalLog('  ');
+    // Flag if this is an ARB transaction. Set to false by default.
+    $arb = FALSE;
 
-    $logfile = $tmp_server_path . "/" . $filename_prefix . "__pogstone_pay_pal_log.txt";
-    print "<br>Log file path: " . $logfile;
+    // Store the posted values in an associative array
+    $fields = array();
 
-    $pay_pal_log_handle = fopen($logfile, "a+");
+    $raw_msg = '';
+    foreach ($_REQUEST as $name => $value) {
+      // Create our associative array
+      $fields[$name] = $value;
+      $tmp = "Name: " . $name . "  ---  Value: " . $value . " ----------";
 
-    $now = date('Y-m-d  H:i:s');
-
-    if ($pay_pal_log_handle) {
-
-      fwrite($pay_pal_log_handle, $now);
-      fwrite($pay_pal_log_handle, '  ');
-      // Flag if this is an ARB transaction. Set to false by default.
-      $arb = FALSE;
-
-      // Store the posted values in an associative array
-      $fields = array();
-
-      $raw_msg = '';
-      foreach ($_REQUEST as $name => $value) {
-        // Create our associative array
-        $fields[$name] = $value;
-        $tmp = "Name: " . $name . "  ---  Value: " . $value . " ----------";
-
-        $raw_msg = $raw_msg . $tmp;
-        fwrite($pay_pal_log_handle, $tmp);
-      }
-
-      fwrite($pay_pal_log_handle, "\n-----------------------------------------------------------\n\n");
-      // Get all the URL parameters/fields into variables.
+      $raw_msg = $raw_msg . $tmp;
+      $this->pogstonePaypalLog($tmp);
     }
+
+    $this->pogstonePaypalLog("\n-----------------------------------------------------------\n\n");
+    // Get all the URL parameters/fields into variables.
 
     /*  Sample message:
       Name: amount  ---  Value: 101.00 ----------
@@ -748,6 +735,17 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
 
     $dao = CRM_Core_DAO::executeQuery($sql);
     $dao->free();
+  }
+
+  public function pogstonePaypalLog($msg) {
+    static $pay_pal_log_handle;
+    if (!isset($pay_pal_log_handle)) {
+      $logfile = realpath($_SERVER['DOCUMENT_ROOT'] . '/../') . "/" . date('Y-m-d') . "__pogstone_pay_pal_log.txt";
+      $pay_pal_log_handle = fopen($logfile, "a+");
+    }
+    if ($pay_pal_log_handle) {
+      fwrite($pay_pal_log_handle, $msg);
+    }
   }
 
 }
