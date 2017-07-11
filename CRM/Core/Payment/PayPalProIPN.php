@@ -1,28 +1,29 @@
 <?php
+
 /*
- +--------------------------------------------------------------------+
- | CiviCRM version 4.7                                                |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2016                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
- |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
- +--------------------------------------------------------------------+
+  +--------------------------------------------------------------------+
+  | CiviCRM version 4.7                                                |
+  +--------------------------------------------------------------------+
+  | Copyright CiviCRM LLC (c) 2004-2016                                |
+  +--------------------------------------------------------------------+
+  | This file is a part of CiviCRM.                                    |
+  |                                                                    |
+  | CiviCRM is free software; you can copy, modify, and distribute it  |
+  | under the terms of the GNU Affero General Public License           |
+  | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
+  |                                                                    |
+  | CiviCRM is distributed in the hope that it will be useful, but     |
+  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
+  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
+  | See the GNU Affero General Public License for more details.        |
+  |                                                                    |
+  | You should have received a copy of the GNU Affero General Public   |
+  | License and the CiviCRM Licensing Exception along                  |
+  | with this program; if not, contact CiviCRM LLC                     |
+  | at info[AT]civicrm[DOT]org. If you have questions about the        |
+  | GNU Affero General Public License or the licensing of CiviCRM,     |
+  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+  +--------------------------------------------------------------------+
  */
 
 /**
@@ -145,9 +146,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
    */
   public function retrieve($name, $type, $location = 'POST', $abort = TRUE) {
     $value = CRM_Utils_Type::validate(
-      CRM_Utils_Array::value($name, $this->_inputParameters),
-      $type,
-      FALSE
+        CRM_Utils_Array::value($name, $this->_inputParameters), $type, FALSE
     );
     if ($abort && $value === NULL) {
       throw new CRM_Core_Exception("Could not find an entry for $name in $location");
@@ -204,16 +203,16 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     $subscriptionPaymentStatus = NULL;
     //List of Transaction Type
     /*
-    recurring_payment_profile_created          RP Profile Created
-    recurring_payment           RP Successful Payment
-    recurring_payment_failed                               RP Failed Payment
-    recurring_payment_profile_cancel           RP Profile Cancelled
-    recurring_payment_expired         RP Profile Expired
-    recurring_payment_skipped        RP Profile Skipped
-    recurring_payment_outstanding_payment      RP Successful Outstanding Payment
-    recurring_payment_outstanding_payment_failed          RP Failed Outstanding Payment
-    recurring_payment_suspended        RP Profile Suspended
-    recurring_payment_suspended_due_to_max_failed_payment  RP Profile Suspended due to Max Failed Payment
+      recurring_payment_profile_created          RP Profile Created
+      recurring_payment           RP Successful Payment
+      recurring_payment_failed                               RP Failed Payment
+      recurring_payment_profile_cancel           RP Profile Cancelled
+      recurring_payment_expired         RP Profile Expired
+      recurring_payment_skipped        RP Profile Skipped
+      recurring_payment_outstanding_payment      RP Successful Outstanding Payment
+      recurring_payment_outstanding_payment_failed          RP Failed Outstanding Payment
+      recurring_payment_suspended        RP Profile Suspended
+      recurring_payment_suspended_due_to_max_failed_payment  RP Profile Suspended due to Max Failed Payment
      */
 
     //set transaction type
@@ -224,10 +223,9 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     switch ($txnType) {
       case 'recurring_payment_profile_created':
         if (in_array($recur->contribution_status_id, array(
-              array_search('Pending', $contributionStatuses),
-              array_search('In Progress', $contributionStatuses),
-            ))
-          && !empty($recur->processor_id)
+            array_search('Pending', $contributionStatuses),
+            array_search('In Progress', $contributionStatuses),
+          )) && !empty($recur->processor_id)
         ) {
           echo "already handled";
           return FALSE;
@@ -278,12 +276,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
         $autoRenewMembership = TRUE;
       }
       //send recurring Notification email for user
-      CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus,
-        $ids['contact'],
-        $ids['contributionPage'],
-        $recur,
-        $autoRenewMembership
-      );
+      CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus, $ids['contact'], $ids['contributionPage'], $recur, $autoRenewMembership);
     }
 
     if ($txnType != 'recurring_payment') {
@@ -314,9 +307,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     // CRM-13737 - am not aware of any reason why payment_date would not be set - this if is a belt & braces
     $objects['contribution']->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
 
-    $this->single($input, $ids, $objects,
-      TRUE, $first
-    );
+    $this->single($input, $ids, $objects, TRUE, $first);
   }
 
   /**
@@ -449,14 +440,12 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     // processor id & the handleNotification function (which should call the completetransaction api & by-pass this
     // entirely). The only thing the IPN class should really do is extract data from the request, validate it
     // & call completetransaction or call fail? (which may not exist yet).
-    $paymentProcessorTypeID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType',
-      'PayPal', 'id', 'name'
-    );
+    $paymentProcessorTypeID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType', 'PayPal', 'id', 'name');
     $paymentProcessorID = (int) civicrm_api3('PaymentProcessor', 'getvalue', array(
-      'is_test' => 0,
-      'options' => array('limit' => 1),
-      'payment_processor_type_id' => $paymentProcessorTypeID,
-      'return' => 'id',
+        'is_test' => 0,
+        'options' => array('limit' => 1),
+        'payment_processor_type_id' => $paymentProcessorTypeID,
+        'return' => 'id',
     ));
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
@@ -557,9 +546,9 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     }
 
     $contributionRecur = civicrm_api3('contribution_recur', 'getsingle', array(
-        'return' => 'contact_id, id',
-        'invoice_id' => $input['invoice'],
-      ));
+      'return' => 'contact_id, id',
+      'invoice_id' => $input['invoice'],
+    ));
     $ids['contact'] = $contributionRecur['contact_id'];
     $ids['contributionRecur'] = $contributionRecur['id'];
     $result = civicrm_api3('contribution', 'getsingle', array('invoice_id' => $input['invoice']));
@@ -575,15 +564,13 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
           $ids['contribution'],
           'Integer',
         ),
-      ));
+    ));
     // only handle component at this stage - not terribly sure how a recurring event payment would arise
     // & suspec main function may be a victom of copy & paste
     // membership would be an easy add - but not relevant to my customer...
     $this->_component = $input['component'] = 'contribute';
     $input['trxn_date'] = date('Y-m-d-H-i-s', strtotime(self::retrieve('time_created', 'String')));
-    $paymentProcessorID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType',
-      'PayPal', 'id', 'name'
-    );
+    $paymentProcessorID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType', 'PayPal', 'id', 'name');
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
       throw new CRM_Core_Exception('Data did not validate');
@@ -597,8 +584,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
    * @return bool|void
    */
   public function transactionExists($trxn_id) {
-    if (CRM_Core_DAO::singleValueQuery("SELECT count(*) FROM civicrm_contribution WHERE trxn_id = %1",
-      array(
+    if (CRM_Core_DAO::singleValueQuery("SELECT count(*) FROM civicrm_contribution WHERE trxn_id = %1", array(
         1 => array($trxn_id, 'String'),
       ))
     ) {
@@ -606,43 +592,29 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     }
   }
 
-  function pogstone_log_details() {
-    // Pogstone added:
-    $tmp_server_path = realpath($_SERVER['DOCUMENT_ROOT'] . '/../');
+  public function pogstone_log_details() {
+    // Pogstone added:   
 
-    $filename_prefix = date('Y-m-d');
+    $this->pogstonePaypalLog(date('Y-m-d  H:i:s'));
+    $this->pogstonePaypalLog('  ');
+    // Flag if this is an ARB transaction. Set to false by default.
+    $arb = FALSE;
 
+    // Store the posted values in an associative array
+    $fields = array();
 
-    $logfile = $tmp_server_path . "/" . $filename_prefix . "__pogstone_pay_pal_log.txt";
-    print "<br>Log file path: " . $logfile;
+    $raw_msg = '';
+    foreach ($_REQUEST as $name => $value) {
+      // Create our associative array
+      $fields[$name] = $value;
+      $tmp = "Name: " . $name . "  ---  Value: " . $value . " ----------";
 
-    $pay_pal_log_handle = fopen($logfile, "a+");
-
-    $now = date('Y-m-d  H:i:s');
-
-    if ($pay_pal_log_handle) {
-      fwrite($pay_pal_log_handle, $now);
-      fwrite($pay_pal_log_handle, '  ');
-
-      // Store the posted values in an associative array
-      $fields = array();
-
-      $raw_msg = '';
-      foreach ($_REQUEST as $name => $value) {
-        // Create our associative array
-        $fields[$name] = $value;
-        $tmp = "Name: " . $name . "  ---  Value: " . $value . " ----------";
-
-        $raw_msg = $raw_msg . $tmp;
-        fwrite($pay_pal_log_handle, $tmp);
-      }
-
-
-
-      fwrite($pay_pal_log_handle, "\n-----------------------------------------------------------\n\n");
-      // Get all the URL parameters/fields into variables.
+      $raw_msg = $raw_msg . $tmp;
+      $this->pogstonePaypalLog($tmp);
     }
 
+    $this->pogstonePaypalLog("\n-----------------------------------------------------------\n\n");
+    // Get all the URL parameters/fields into variables.
 
     /*  Sample message:
       Name: amount  ---  Value: 101.00 ----------
@@ -674,7 +646,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
       Name: tax  ---  Value: 0.00 ----------
       Name: residence_country  ---  Value: US ----------
       Name: payer_email   --- Value: kaplan@aol.com --------------
-
 
       -------------------------------------------------------------------------------------------
       --------------------------------------------------------------------------------------------
@@ -726,8 +697,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
 
      */
 
-
-
     /*
       // Check for refunds. For refunds, record the amount as a negative number.
       if($x_type == 'credit'){
@@ -762,6 +731,17 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
 
     $dao = CRM_Core_DAO::executeQuery($sql);
     $dao->free();
+  }
+
+  public function pogstonePaypalLog($msg) {
+    static $pay_pal_log_handle;
+    if (!isset($pay_pal_log_handle)) {
+      $logfile = realpath($_SERVER['DOCUMENT_ROOT'] . '/../') . "/" . date('Y-m-d') . "__pogstone_pay_pal_log.txt";
+      $pay_pal_log_handle = fopen($logfile, "a+");
+    }
+    if ($pay_pal_log_handle) {
+      fwrite($pay_pal_log_handle, $msg);
+    }
   }
 
 }
