@@ -247,7 +247,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
         date_format(msgs.message_date, '%Y-%m-%d'  ) as message_date, 
         recur.id as crm_recur_id, 
         recur_ft.id as recur_contribution_type, 
-        recur_contact.id as recur_contact_id, 
+        recur_contact.id as recur_contact_id
       FROM 
         $messages_table_name as msgs
         LEFT JOIN civicrm_contribution ctrb ON msgs.x_trans_id = ctrb.trxn_id
@@ -385,7 +385,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     // a.k.a, "FOURTH PASS"
     $sql = "SELECT 
       c.id as contribution_id,
-      con.id as contact_id,
+      con.id as contact_id
     FROM 
       pogstone_authnet_messages v
       join pogstone_authnet_messages m ON v.x_trans_id = m.x_trans_id AND m.x_type IN ('auth_capture', 'credit', 'capture_only' )
