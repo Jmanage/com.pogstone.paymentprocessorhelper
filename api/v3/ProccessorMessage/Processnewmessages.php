@@ -74,7 +74,7 @@ function handle_the_messages() {
           substr(msgs.payment_date, 14, 2) as payment_date_day,
           substr(msgs.payment_date, 18, 4) as payment_date_year,
           recur.id as crm_recur_id, 
-          recur.amount as crm_amount,
+          recur.amount as crm_amount
         FROM 
           $messages_table_name as msgs 
           LEFT JOIN civicrm_contribution ctrb ON msgs.txn_id = ctrb.trxn_id 
