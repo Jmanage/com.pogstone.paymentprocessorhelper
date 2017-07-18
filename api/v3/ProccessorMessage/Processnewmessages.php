@@ -19,6 +19,7 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
 }
 
 function handle_the_messages() {
+  $now = date('Y-m-d  H:i:s');
   $all_message_types_tocheck = array();
 
   $pay_pal_type = "PayPal";
@@ -128,7 +129,7 @@ function handle_the_messages() {
       ";
     }
 
-    $now = date('Y-m-d  H:i:s');
+    _processnewmessages_messages_with_existing_contributions($messages_table_name, $now);
 
     // print "<h2>Section: Find new payment processor messages and attempt to create contribution records</h2>";
     if (strlen($sql) > 0) {
@@ -1157,4 +1158,74 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
   }
 
   return $msg_ids;
+}
+
+/**
+ * Find any messages in the given message table that meet the appropriate
+ * criteria, and mark them as processed by storing the current date/time in the
+ * processed column. Criteria basically amount to:
+ *   - Has matching contribution record by Transaction ID
+ *   - Is not already marked processed.
+ *
+ * Rationale:
+ *   Any non-recurring contribution is created at time of submission and
+ *   immediately given a transaction ID and sent to authorize.net; for this
+ *   one-time contribution, CiviCRM listens actively for the immediate
+ *   Authorize.net response, and marks the status accordingly (usually
+ *   "Completed"). This contribution record has all the data it will ever need
+ *   and requires no further processing. A moment later, the payment procesor
+ *   (Authorize.net/PayPal) sends a message via Silent Post / IPN. PPH
+ *   intercepts this message (as it does with all messages) and logs it in
+ *   the messages table.
+ *   At the next cron run, PPH scans the messages tables for relevant messages,
+ *   and it ignores this message, because it matches (by transaction ID) an
+ *   existing contribution record (see README.md "First Pass").
+ *   This means the message is never processed and thus never marked as processed.
+ *   However, if the contribution is ever deleted (intentionally), PPH will
+ *   later find this message, note that it's not processed, and process it, thus
+ *   re-creating that contribution.
+ *   To avoid this, we mark these as processed as soon as we find them, admitting
+ *   that "processed" here really means "saw it and noted that nothing should
+ *   be done with it."
+ *
+ *   Reference: https://pogstone.zendesk.com/agent/tickets/12844
+ *
+ * @param String $messages_table_name Name of the messages table.
+ * @param string $timestamp A mysql datetime string. This timestamp will be
+ *   inserted into the `processed` column for affected message rows.
+ */
+function _processnewmessages_messages_with_existing_contributions($messages_table_name, $timestamp) {
+  switch ($messages_table_name) {
+    case 'pogstone_paypal_messages':
+      $sql = "
+        UPDATE $messages_table_name msgs
+          INNER JOIN civicrm_contribution ctrb
+        SET processed = %1
+        WHERE
+          msgs.processed IS NULL
+          AND msgs.message_date > %2
+          AND length(msgs.txn_id) > ''
+          AND msgs.txn_id = ctrb.trxn_id
+      ";
+      break;
+    case 'pogstone_authnet_messages':
+      $sql = "
+        UPDATE $messages_table_name msgs
+          INNER JOIN civicrm_contribution ctrb
+        SET processed = %1
+        WHERE
+          msgs.processed IS NULL
+          AND msgs.message_date > %2
+          AND length(msgs.x_trans_id) > ''
+          AND msgs.x_trans_id = ctrb.trxn_id
+      ";
+      break;
+  }
+  if (!empty($sql)) {
+    $sql_params = array(
+      1 => array($timestamp, 'String'),
+      2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
+    );
+    CRM_Core_DAO::executeQuery($sql, $sql_params);
+  }
 }

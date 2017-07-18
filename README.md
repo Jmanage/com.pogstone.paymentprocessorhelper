@@ -92,43 +92,65 @@ no other action is taken.
 
 ### Periodic message processing
 
-1. Messages are processed on a schedule by the "Process data from payment
+Messages are processed on a schedule by the "Process data from payment
 processors" scheduled job, which searches message tables for unprocessed
 messages and then processes them according to these rules.
 
-2. Check whether any payment processors of type "PayPal" or "Authorize.net"
+1. Check whether any payment processors of type "PayPal" or "Authorize.net"
 exist, and if so, be sure to check the relevant message tables.
+
+2. Find any messages in the relevant message table that meet the following
+criteria, and mark them as *processed* by storing the current date/time in the
+processed column.
+
+    **pogstone_paypal_messages**
+
+    1. Transaction ID (as received via IPN) is not an empty string;
+    2. Transaction ID (as received via IPN) matches the Transaction ID of any
+existing Contribution record;
+    3. The message_date column in the messages table has a value >=
+'2015-01-15';
+    4. The processed column in the messages table is NULL.
+
+    **pogstone_authnet_messages**
+
+    1. Transaction ID (as received via Silent Post) is not an empty string;
+    2. Transaction ID (as received via Silent Post) matches the Transaction ID of
+any existing Contribution record;
+    3. The message_date column in the messages table has a value >=
+'2015-01-15';
+    4. The processed column in the messages table is NULL.
 
 3. Perform a **first pass** over the relevant message table to check for
 relevant messages representing **a payment in a Recurring Contribution series**:
 
-  **pogstone_paypal_messages**
+    **pogstone_paypal_messages**
 
-  Relevant messages meet these criteria:
+    Relevant messages meet these criteria:
 
-  1. Payment status (as received via IPN) is 'Completed';
-  2. Recurring payment ID (as received via IPN) is not an empty string;
-  3. Transaction ID (as received via IPN) is not an empty string;
-  4. Transaction ID (as received via IPN) does not match the Transaction
+    1. Payment status (as received via IPN) is 'Completed';
+    2. Recurring payment ID (as received via IPN) is not an empty string;
+    3. Transaction ID (as received via IPN) is not an empty string;
+    4. Transaction ID (as received via IPN) does not match the Transaction
 ID of any existing Contribution record;
-  5. The message_date column in the messages table has a value >=
+    5. The message_date column in the messages table has a value >=
 '2013-03-01';
-  6. The processed column in the messages table is NULL.
+    6. The processed column in the messages table is NULL.
 
-  **pogstone_authnet_messages**
+    **pogstone_authnet_messages**
 
-  Relevant messages meet these criteria:
+    Relevant messages meet these criteria:
 
-  1. Response code (as received via Silent Post) is 1;
-  2. Subscription ID (as received via Silent Post) is not an empty string;
-  3. The transaction amount (as received via Silent Post) is equal to the
+    1. Response code (as received via Silent Post) is 1;
+    2. Subscription ID (as received via Silent Post) is not an empty string;
+    3. The transaction amount (as received via Silent Post) is equal to the
 amount of the matching existing Recurring Contribution record;
-  4. Transaction ID (as received via Silent Post) is not an empty string;
-    5. Transaction ID (as received via Silent Post) does not match the
-Transaction ID of any existing Contribution record;
-  6. The message_date column in the messages table has a value >=
+    4. Transaction ID (as received via Silent Post) is not an empty string;
+    5. Transaction ID (as received via Silent Post) does not match the Transaction
+ID of any existing Contribution record;
+    6. The message_date column in the messages table has a value >=
 '2013-03-01';
-  7. The processed column in the messages table is NULL.
+    7. The processed column in the messages table is NULL.
 
 4. For each message found in this **first pass**:
 
@@ -640,7 +662,6 @@ should be removed to ease maintenance:
             5. civicrm_recur_id
 
             6. message_raw
-
 
 ## License
 
