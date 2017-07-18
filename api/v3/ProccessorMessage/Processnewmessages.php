@@ -66,28 +66,28 @@ function handle_the_messages() {
     if ($cur_type == "PayPal") {
       $messages_table_name = 'pogstone_paypal_messages';
       $sql = "
-        SELECT 
-          msgs.id, 
-          msgs.txn_id, 
+        SELECT
+          msgs.id,
+          msgs.txn_id,
           date_format(msgs.message_date, '%Y%m%d'  ) as message_date,
           substr(msgs.payment_date, 10, 3) as payment_date_month,
           substr(msgs.payment_date, 14, 2) as payment_date_day,
           substr(msgs.payment_date, 18, 4) as payment_date_year,
-          recur.id as crm_recur_id, 
+          recur.id as crm_recur_id,
           recur.amount as crm_amount
-        FROM 
-          $messages_table_name as msgs 
-          LEFT JOIN civicrm_contribution ctrb ON msgs.txn_id = ctrb.trxn_id 
+        FROM
+          $messages_table_name as msgs
+          LEFT JOIN civicrm_contribution ctrb ON msgs.txn_id = ctrb.trxn_id
           LEFT JOIN civicrm_contribution_recur recur ON recur.id = (
             substr(
-              rp_invoice_id, 
-              LOCATE( 
+              rp_invoice_id,
+              LOCATE(
                 '&r=' , rp_invoice_id
               ) + 3,
               (
                 LOCATE(
-                  '&b=', rp_invoice_id 
-                ) - 3 -  
+                  '&b=', rp_invoice_id
+                ) - 3 -
                 (
                   LOCATE(
                     '&r=' , rp_invoice_id
@@ -96,30 +96,30 @@ function handle_the_messages() {
               )
             )
           )
-        WHERE 
-          msgs.payment_status = 'Completed' 
-          AND length(msgs.recurring_payment_id) > 0 
+        WHERE
+          msgs.payment_status = 'Completed'
+          AND length(msgs.recurring_payment_id) > 0
           AND ctrb.id IS NULL
           AND msgs.message_date >= '2013-03-01'
           AND msgs.processed IS NULL
-        GROUP by msgs.ipn_track_id 
+        GROUP by msgs.ipn_track_id
       ";
     }
     elseif ($cur_type == "AuthNet") {
       $messages_table_name = 'pogstone_authnet_messages';
       $sql = "
-        SELECT 
-          msgs.id, 
-          msgs.civicrm_recur_id, 
+        SELECT
+          msgs.id,
+          msgs.civicrm_recur_id,
           msgs.x_trans_id,
           msgs.x_amount,
           date_format(message_date, '%Y%m%d'  ) as message_date ,
-          recur.id as crm_recur_id, 
+          recur.id as crm_recur_id,
           recur.amount  as crm_amount
         FROM $messages_table_name as msgs
           LEFT JOIN civicrm_contribution ctrb ON msgs.x_trans_id = ctrb.trxn_id
           LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
-        WHERE 
+        WHERE
           msgs.x_response_code = '1'
           AND length(msgs.x_subscription_id) > 0
           AND ctrb.id IS NULL
@@ -184,9 +184,8 @@ function handle_the_messages() {
           }
         }
 //        else {
-          // print "<br>Error: Could not find crm_recur_id for x_subscription_id: ".$processor_subscription_id;
+        // print "<br>Error: Could not find crm_recur_id for x_subscription_id: ".$processor_subscription_id;
 //        }
-
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
         $sql = "
           UPDATE $messages_table_name
@@ -230,9 +229,9 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     if (!empty($message_ids)) {
       $msgs_id_where = "AND msgs.id NOT IN (" . implode(',', $message_ids) . ")";
     }
-    $sql = " 
-      SELECT 
-        msgs.id, 
+    $sql = "
+      SELECT
+        msgs.id,
         msgs.x_type as trans_type,
         msgs.x_amount as message_amount,
         msgs.x_response_code,
@@ -244,17 +243,17 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
         msgs.x_email,
         msgs.x_description,
         msgs.x_cust_id,
-        date_format(msgs.message_date, '%Y-%m-%d'  ) as message_date, 
-        recur.id as crm_recur_id, 
-        recur_ft.id as recur_contribution_type, 
+        date_format(msgs.message_date, '%Y-%m-%d'  ) as message_date,
+        recur.id as crm_recur_id,
+        recur_ft.id as recur_contribution_type,
         recur_contact.id as recur_contact_id
-      FROM 
+      FROM
         $messages_table_name as msgs
         LEFT JOIN civicrm_contribution ctrb ON msgs.x_trans_id = ctrb.trxn_id
         LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = msgs.x_subscription_id
         LEFT JOIN civicrm_financial_type recur_ft ON recur.financial_type_id = recur_ft.id
         LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
-       WHERE 
+       WHERE
         ctrb.id IS NULL
         AND date(msgs.message_date) >= '" . PROCESSNEWMESSAGES_START_DATE . "'
         AND msgs.x_trans_id <> '0'
@@ -383,19 +382,19 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
 
     // Now handle VOIDs
     // a.k.a, "FOURTH PASS"
-    $sql = "SELECT 
+    $sql = "SELECT
       c.id as contribution_id,
       con.id as contact_id
-    FROM 
+    FROM
       pogstone_authnet_messages v
       join pogstone_authnet_messages m ON v.x_trans_id = m.x_trans_id AND m.x_type IN ('auth_capture', 'credit', 'capture_only' )
-      LEFT JOIN civicrm_contribution c ON m.x_trans_id = c.trxn_id 
+      LEFT JOIN civicrm_contribution c ON m.x_trans_id = c.trxn_id
       LEFT JOIN civicrm_contact con ON c.contact_id = con.id
       LEFT JOIN civicrm_contribution_recur recur ON recur.processor_id = m.x_subscription_id
       LEFT JOIN civicrm_financial_type recur_ct ON recur.financial_type_id = recur_ct.id
-      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id 
+      LEFT JOIN civicrm_contact recur_contact ON recur.contact_id = recur_contact.id
       LEFT JOIN civicrm_financial_type ct ON c.financial_type_id = ct.id
-    where 
+    where
       v.x_type = 'void' and v.x_response_code = '1'
       AND m.x_response_code = '1'
       AND c.contribution_status_id IN  ( '1', '2', '5', '6')
@@ -485,7 +484,7 @@ function getFinancialTypeID_forMessage() {
 function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
 
   /*
-  $params = array(
+    $params = array(
     'version' => 3,
     'sequential' => 1,
     'contact_type' => 'Individual',
@@ -494,8 +493,8 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
     'postal_code' => 42345,
     'first_name' => 'Sample2',
     'last_name' => 'Last2',
-  );
-  */
+    );
+   */
 
   $contact_id = "";
 
@@ -567,12 +566,12 @@ function handleCancelledSubscriptions() {
   $pending_status_id = "2";
 
   $tmp_sql = "
-    select 
+    select
       c.id as contrib_id
-    FROM 
-      civicrm_contribution_recur r 
+    FROM
+      civicrm_contribution_recur r
       join civicrm_contribution c ON r.id = c.contribution_recur_id
-    WHERE  
+    WHERE
       r.contribution_status_id  = $cancelled_status_id
       AND c.contribution_status_id = $pending_status_id
   ";
@@ -597,7 +596,6 @@ function handleCancelledSubscriptions() {
   $dao->free();
 }
 
-
 /**
  * FIXME: document me!
  */
@@ -615,7 +613,7 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
   // +----+------------------------+-----------+----------------------+----------------------+
 
   $financial_account_id = CRM_Core_DAO::singleValueQuery(
-    '
+      '
       SELECT financial_account_id
       FROM civicrm_entity_financial_account
       WHERE account_relationship = 1
@@ -623,7 +621,7 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
         AND entity_id = %1
     ', array(
       1 => array($line_item_data['financial_type_id'], 'Positive'),
-    )
+      )
   );
 
   $insert_sql_financial_item = "INSERT INTO civicrm_financial_item (created_date, transaction_date, contact_id, description, amount, currency, financial_account_id, status_id , entity_table , entity_id)
@@ -930,7 +928,7 @@ function createContributionBasedOnExistingContribution($base_contrib_id, $trxn_i
 
   // Need to get custom data values from contribution.
   $tmp_custom_data_api_names = getContributionAPINames();
-  
+
   $source_tmp = 'automated payment';
   $skipLineItem_parm = "1";
 
@@ -1085,7 +1083,7 @@ function getContributionAPINames() {
  * of the first transaction in a recurring contribution. For each one found,
  * set the status to 'Failed' for both the contribution and its corresponding
  * contribution_recur entity; also mark the message as processed.
- * 
+ *
  * a.k.a. "SECOND PASS"
  *
  * @param string $timestamp A mysql datetime string. Messages may have already
