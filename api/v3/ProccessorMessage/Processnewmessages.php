@@ -19,6 +19,8 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
 }
 
 function handle_the_messages() {
+  CRM_Core_Error::debug_log_message('processnewmessages: Start ' . __FUNCTION__ . "().");
+
   $now = date('Y-m-d  H:i:s');
   $all_message_types_tocheck = array();
 
@@ -136,7 +138,9 @@ function handle_the_messages() {
       $dao = CRM_Core_DAO::executeQuery($sql);
 
       // a.k.a. "FIRST PASS"
+      CRM_Core_Error::debug_log_message("processnewmessages: Beginning FIRST PASS for $messages_table_name");
       while ($dao->fetch()) {
+        CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: found message id {$dao->id}.");
         $message_valid_to_process = TRUE;
 
 //        $cid = $dao->recur_contact_id;
@@ -178,6 +182,7 @@ function handle_the_messages() {
           }
           else {
             //  print "<h2>Process for contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id."</h2>";
+            CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: calling UpdateRecurringContributionSubscription() for message id {$dao->id}, for recurring ID $recur_id.");
             $rtn_code = UpdateRecurringContributionSubscription($log_handle, $recur_id, $trxn_id, $receive_date, $payment_instrument_id);
 
             // TODO: Check rtn_code to see if there was an error.
@@ -198,15 +203,20 @@ function handle_the_messages() {
           2 => array($dao->id, 'Int'),
         );
         CRM_Core_DAO::executeQuery($sql, $dao_params);
+        CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: marked message id {$dao->id} as processed at $now.");
       }
 
       $dao->free();
+
+      CRM_Core_Error::debug_log_message("processnewmessages: End FIRST PASS for $messages_table_name.");
 
       handle_messges_with_no_contrib($cur_type, $now);
     }
   }
 
   handleCancelledSubscriptions();
+  CRM_Core_Error::debug_log_message('processnewmessages: End ' . __FUNCTION__ . "().");
+
   return $rec_count;
 }
 
@@ -227,6 +237,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $message_ids = _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp);
 
     // a.k.a. "THIRD PASS"
+    CRM_Core_Error::debug_log_message('processnewmessages: Beginning THIRD PASS');
     if (!empty($message_ids)) {
       $msgs_id_where = "AND msgs.id NOT IN (" . implode(',', $message_ids) . ")";
     }
@@ -270,6 +281,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     //  sql for messages missing a contribution:
     $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
     while ($dao->fetch()) {
+      CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: found message id {$dao->id} in $messages_table_name.");
 
       $trans_id = $dao->x_trans_id;
       $trans_type = $dao->trans_type;
@@ -363,6 +375,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           }
 
           $result = civicrm_api3('Contribution', 'create', $contrib_params);
+          CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: created contribution {$result['id']} from message id {$dao->id} in $messages_table_name.");
         }
 
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
@@ -376,13 +389,15 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           2 => array($dao->id, 'Int'),
         );
         CRM_Core_DAO::executeQuery($sql, $dao_params);
+        CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: marked message id {$dao->id} in $messages_table_name, as processed at $timestamp");
       }
     }
-
     $dao->free();
+    CRM_Core_Error::debug_log_message('processnewmessages: End THIRD PASS.');
 
     // Now handle VOIDs
     // a.k.a, "FOURTH PASS"
+    CRM_Core_Error::debug_log_message('processnewmessages: Beginning FOURTH PASS');
     $sql = "SELECT
       c.id as contribution_id,
       con.id as contact_id
@@ -413,6 +428,7 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
     $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
 
     while ($dao->fetch()) {
+      CRM_Core_Error::debug_log_message("processnewmessages: In FOURTH PASS: found message id {$dao->id} in $messages_table_name.");
       $contribution_id = $dao->contribution_id;
       $contact_id = $dao->contact_id;
       // print "<Br><br>Have a VOID for contrib id: ".$contribution_id." contact id: ".$contact_id;
@@ -428,9 +444,11 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
         2 => array($dao->id, 'Int'),
       );
       CRM_Core_DAO::executeQuery($sql, $dao_params);
+      CRM_Core_Error::debug_log_message("processnewmessages: In FOURTH PASS: marked message id {$dao->id} in $messages_table_name, as processed at $timestamp");
     }
 
     $dao->free();
+    CRM_Core_Error::debug_log_message('processnewmessages: End FOURTH PASS.');
   }
 }
 
@@ -560,6 +578,7 @@ function get_contact_from_msg($msg_first_name, $msg_last_name, $msg_email) {
 }
 
 function handleCancelledSubscriptions() {
+  CRM_Core_Error::debug_log_message("processnewmessages: Start " . __FUNCTION__ . "().");
   // print "<h2>Section: If recurring contribution is cancelled, then update the pending contribution to cancelled status as well. </h2>";
   // If recurring subscription is cancelled, make sure the pending contribution is also cancelled.
   $cancelled_status_id = "3";
@@ -579,6 +598,7 @@ function handleCancelledSubscriptions() {
 
   $dao = & CRM_Core_DAO::executeQuery($tmp_sql, CRM_Core_DAO::$_nullArray);
   while ($dao->fetch()) {
+    CRM_Core_Error::debug_log_message("processnewmessages: In " . __FUNCTION__ . "(): found pending contribution id={$dao->contrib_id} attached a canceled recurring contribution.");
     $contrib_id = $dao->contrib_id;
 
     if (strlen($contrib_id) > 0) {
@@ -589,12 +609,14 @@ function handleCancelledSubscriptions() {
         'contribution_status_id' => $cancelled_status_id,
       );
       $result = civicrm_api('Contribution', 'create', $params);
+      CRM_Core_Error::debug_log_message("processnewmessages: In " . __FUNCTION__ . "(): updated status to {$cancelled_status_id} (canceled) for contribution id={$dao->contrib_id}.");
       //print "<br>API update contrib. status result:<br>";
       //print_r( $result);
     }
   }
 
   $dao->free();
+  CRM_Core_Error::debug_log_message("processnewmessages: End " . __FUNCTION__ . "().");
 }
 
 /**
@@ -674,6 +696,7 @@ function create_needed_line_item_db_records($line_item_id, $line_item_data, $con
 }
 
 function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$trxn_id, &$trxn_receive_date, &$payment_instrument_id) {
+  CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): \$crm_recur_id: $crm_recur_id; \$trxn_id: $trxn_id; \$trxn_receive_date: $trxn_receive_date; \$payment_instrument_id: $payment_instrument_id");
   $contribution_completed = FALSE;
 
   $params = array(
@@ -701,7 +724,9 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   //   print "<br>About to check for first contrib in the subscription<br>";
   //  print_r($result);
   // get contrib. id of starting contrib.
+  CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): calling findFirstContributionInSubscription() for \$crm_recur_id: $crm_recur_id; \$trxn_id: $trxn_id; \$trxn_receive_date: $trxn_receive_date; \$payment_instrument_id: $payment_instrument_id");
   findFirstContributionInSubscription($log_handle, $crm_recur_id, $first_contrib_id, $first_contrib_status);
+  CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): based on findFirstContributionInSubscription() for \$crm_recur_id: $crm_recur_id; first contribution id=$first_contrib_id with status of $first_contrib_status.");
 
   // print "<br>Already checked for first contrib in the subscription";
 
@@ -709,7 +734,9 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
     if (strlen($first_contrib_id) > 0) {
       // Create a new contribution record based on data from the first contribution record.
 
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): calling createContributionBasedOnExistingContribution() for \$first_contrib_id: $first_contrib_id; \$trxn_id: $trxn_id; \$trxn_receive_date: $trxn_receive_date; \$payment_instrument_id: $payment_instrument_id");
       $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): createContributionBasedOnExistingContribution() result was: (boolean) {$rtn_code}.");
       $contribution_completed = $rtn_code;
     }
     else {
@@ -723,7 +750,9 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
 
     if (strlen($first_contrib_id) > 0) {
       // Create a new contribution record based on data from the first contribution record.
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): calling createContributionBasedOnExistingContribution() for \$first_contrib_id: $first_contrib_id; \$trxn_id: $trxn_id; \$trxn_receive_date: $trxn_receive_date; \$payment_instrument_id: $payment_instrument_id");
       $rtn_code = createContributionBasedOnExistingContribution($first_contrib_id, $trxn_id, $trxn_receive_date, $payment_instrument_id);
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): createContributionBasedOnExistingContribution() result was: (boolean) {$rtn_code}.");
       $contribution_completed = $rtn_code;
 
       if ($rtn_code == TRUE) {
@@ -735,6 +764,7 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
           'id' => $first_contrib_id,
         );
         $result = civicrm_api('Contribution', 'delete', $params);
+        CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): deleted first contribution id={$first_contrib_id}, for \$crm_recur_id: $crm_recur_id.");
         // print "<br>Result from deleting the pending contribution:<br>";
         // print_r($result);
       }
@@ -748,11 +778,16 @@ function UpdateRecurringContributionSubscription($log_handle, &$crm_recur_id, &$
   }
 
   if ($contribution_completed) {
+    CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): because createContributionBasedOnExistingContribution() returned TRUE, calling update_recurring_subscription_details() was not called, for \$trxn_receive_date: $trxn_receive_date; \$crm_recur_id: $crm_recur_id.");
     update_recurring_subscription_details($crm_recur_id, $trxn_receive_date);
+  }
+  else {
+    CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): because createContributionBasedOnExistingContribution() returned FALSE, update_recurring_subscription_details() was not called, for \$crm_recur_id: $crm_recur_id.");
   }
 }
 
 function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date) {
+  CRM_Core_Error::debug_log_message("processnewmessages: starting " . __FUNCTION__ . "() for \$crm_recur_id: $crm_recur_id; \$trxn_receive_date: $trxn_receive_date; expect more log lines if this function completes propertly.");
   if (strlen($crm_recur_id) == 0) {
     // print "<br>ERROR: crm_recur_id is a required parameter";
     return;
@@ -833,6 +868,7 @@ function update_recurring_subscription_details($crm_recur_id, $trxn_receive_date
   // print "<br><br>Update recur sql: <br>".$update_sql;
   $dao = & CRM_Core_DAO::executeQuery($update_sql, CRM_Core_DAO::$_nullArray);
   $dao->free();
+  CRM_Core_Error::debug_var("processnewmessages: starting " . __FUNCTION__ . "() for \$crm_recur_id: $crm_recur_id; \$trxn_receive_date: $trxn_receive_date; ran this update query: ", $update_sql);
 }
 
 function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first_contrib_id, &$first_contrib_status) {
@@ -853,11 +889,12 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
   }
   else {
     if ($result['count'] == "1") {
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): found just 1 existing pending contribution (id={$result['values'][0]['contribution_id']}) for \$crm_recur_id: $crm_recur_id");
       $first_contrib_id = $result['id'];
       $first_contrib_status = $pending_status_id;
     }
     elseif ($result['count'] == "0") {
-      Civi::log()->info("There is no pending contribution. So create so get the oldest contribution on this subscription: " . $crm_recur_id);
+      CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): found 0  existing pending contributions for \$crm_recur_id: $crm_recur_id");
       $params = array(
         'version' => 3,
         'sequential' => 1,
@@ -868,18 +905,11 @@ function findFirstContributionInSubscription($log_handle, $crm_recur_id, &$first
 
       // print_r( $result ) ;
       if ($result['is_error'] <> 0) {
-        Civi::log()->warning("ProccessorMessage.Processnewmessages: ERROR: issue calling Contribution Get API:");
-
-        foreach ($result as $key => $cur) {
-          Civi::log()->warning($key . " : " . $cur);
-        }
+        CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): ERROR: issue calling Contribution Get API, for \$crm_recur_id: $crm_recur_id");
       }
       else {
-        foreach ($result as $key => $cur) {
-          Civi::log()->info($key . " : " . $cur);
-        }
-
         if ($result['count'] <> 0) {
+          CRM_Core_Error::debug_log_message("processnewmessages: " . __FUNCTION__ . "(): found an existing completed contribution (id={$result['values'][0]['contribution_id']}) for \$crm_recur_id: $crm_recur_id");
           $tmp_contrib_id = $result['values'][0]['contribution_id'];
           $first_contrib_id = $tmp_contrib_id;
         }
@@ -1094,6 +1124,7 @@ function getContributionAPINames() {
  * @return Array of ids for messages processed in this function.
  */
 function _processnewmessages_handle_authnet_first_time_recuring_failures($timestamp) {
+  CRM_Core_Error::debug_log_message('processnewmessages: Beginning SECOND PASS');
   $msg_ids = array();
   $messages_table_name = 'pogstone_authnet_messages';
   // Any Authorize.net 'declined' codes (referecne http://developer.authorize.net/api/reference/dist/json/responseCodes.json):
@@ -1131,6 +1162,7 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
 
   $dao = CRM_Core_DAO::executeQuery($sql, $dao_params);
   while ($dao->fetch()) {
+    CRM_Core_Error::debug_log_message("processnewmessages: In SECOND PASS: found message id {$dao->id} in $messages_table_name.");
     // Mark the contribution (payment) as Failed.
     $result = civicrm_api3('Contribution', 'create', array(
       'id' => $dao->contribution_id,
@@ -1155,7 +1187,9 @@ function _processnewmessages_handle_authnet_first_time_recuring_failures($timest
       2 => array($dao->id, 'Int'),
     );
     CRM_Core_DAO::executeQuery($sql, $dao_params);
+    CRM_Core_Error::debug_log_message("processnewmessages: In SECOND PASS: marked message id {$dao->id} in $messages_table_name, as processed at $timestamp");
   }
+  CRM_Core_Error::debug_log_message('processnewmessages: End SECOND PASS.');
 
   return $msg_ids;
 }
@@ -1208,6 +1242,7 @@ function _processnewmessages_messages_with_existing_contributions($messages_tabl
           AND msgs.txn_id = ctrb.trxn_id
       ";
       break;
+
     case 'pogstone_authnet_messages':
       $sql = "
         UPDATE $messages_table_name msgs
@@ -1227,5 +1262,6 @@ function _processnewmessages_messages_with_existing_contributions($messages_tabl
       2 => array(PROCESSNEWMESSAGES_START_DATE, 'String'),
     );
     CRM_Core_DAO::executeQuery($sql, $sql_params);
+    CRM_Core_Error::debug_log_message('processnewmessages: Ran ' . __FUNCTION__ . " on $messages_table_name with timestamp $timestamp");
   }
 }
