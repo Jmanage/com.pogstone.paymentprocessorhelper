@@ -415,10 +415,12 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
    * @return bool
    */
   public function main() {
-    CRM_Core_Error::debug_var('GET', $_GET, TRUE, TRUE);
-    CRM_Core_Error::debug_var('POST', $_POST, TRUE, TRUE);
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Start '. __FUNCTION__);
+    CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: GET', $_GET, TRUE, TRUE);
+    CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: POST', $_POST, TRUE, TRUE);
     if ($this->_isPaymentExpress) {
       $this->handlePaymentExpress();
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
       return FALSE;
     }
 
@@ -476,6 +478,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $paymentProcessorID = self::getPayPalPaymentProcessorID();
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
       return FALSE;
     }
 
@@ -490,15 +493,19 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         if ($objects['contribution']->contribution_status_id == 1) {
           $first = FALSE;
         }
+        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
         return $this->recur($input, $ids, $objects, $first);
       }
       else {
+        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
         return $this->single($input, $ids, $objects, FALSE, FALSE);
       }
     }
     else {
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
       return $this->single($input, $ids, $objects, FALSE, FALSE);
     }
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End: '. __FUNCTION__);
   }
 
   /**
@@ -621,27 +628,20 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
   }
 
   public function pogstone_log_details() {
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Begin '. __FUNCTION__);
     // Pogstone added:   
 
-    $this->pogstonePaypalLog(date('Y-m-d  H:i:s'));
-    $this->pogstonePaypalLog('  ');
     // Flag if this is an ARB transaction. Set to false by default.
     $arb = FALSE;
 
     // Store the posted values in an associative array
     $fields = array();
 
-    $raw_msg = '';
     foreach ($_REQUEST as $name => $value) {
       // Create our associative array
       $fields[$name] = $value;
-      $tmp = "Name: " . $name . "  ---  Value: " . $value . " ----------";
-
-      $raw_msg = $raw_msg . $tmp;
-      $this->pogstonePaypalLog($tmp);
     }
 
-    $this->pogstonePaypalLog("\n-----------------------------------------------------------\n\n");
     // Get all the URL parameters/fields into variables.
 
     /*  Sample message:
@@ -733,6 +733,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
       }
 
      */
+    CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: ' . __FUNCTION__ . ': Fields', $fields);
 
     $sql = "INSERT INTO pogstone_paypal_messages (`rec_type`, `message_date`, amount, txn_id, recurring_payment_id,
     		payment_date, payment_status, mc_gross, mc_fee, first_name, last_name, payer_email, txn_type, period_type, payment_fee, payment_gross, currency_code,
@@ -757,19 +758,10 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     		 '" . $fields['shipping'] . "',
     		 '" . $fields['product_type'] . "', '" . $fields['time_created'] . "', '" . $fields['ipn_track_id'] . "');";
 
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: '. __FUNCTION__ . ': Log using SQL: '. $sql);
     $dao = CRM_Core_DAO::executeQuery($sql);
-    $dao->free();
-  }
-
-  public function pogstonePaypalLog($msg) {
-    static $pay_pal_log_handle;
-    if (!isset($pay_pal_log_handle)) {
-      $logfile = realpath($_SERVER['DOCUMENT_ROOT'] . '/../') . "/" . date('Y-m-d') . "__pogstone_pay_pal_log.txt";
-      $pay_pal_log_handle = fopen($logfile, "a+");
-    }
-    if ($pay_pal_log_handle) {
-      fwrite($pay_pal_log_handle, $msg);
-    }
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: '. __FUNCTION__ . ': Log SQL result: '. (!is_a($dao, 'DB_Error')));
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End '. __FUNCTION__);
   }
 
 }
