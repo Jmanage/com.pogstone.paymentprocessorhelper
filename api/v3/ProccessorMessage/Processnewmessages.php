@@ -21,7 +21,7 @@ function civicrm_api3_proccessor_message_processnewmessages($params) {
 function handle_the_messages() {
   CRM_Core_Error::debug_log_message('processnewmessages: Start ' . __FUNCTION__ . "().");
 
-  $now = date('Y-m-d  H:i:s');
+  $now = date('Y-m-d H:i:s');
   $all_message_types_tocheck = array();
 
   $pay_pal_type = "PayPal";
@@ -139,9 +139,12 @@ function handle_the_messages() {
 
       // a.k.a. "FIRST PASS"
       CRM_Core_Error::debug_log_message("processnewmessages: Beginning FIRST PASS for $messages_table_name");
+      CRM_Core_Error::debug_var($sql, "processnewmessages: In FIRST PASS, query for $messages_table_name");
+      CRM_Core_Error::debug_var($dao->N, "processnewmessages: In FIRST PASS, number of records found from query for $messages_table_name");
+
       while ($dao->fetch()) {
         CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: found message id {$dao->id}.");
-        $message_valid_to_process = TRUE;
+        $message_invalid_reason = NULL;
 
 //        $cid = $dao->recur_contact_id;
         $recur_id = $dao->crm_recur_id;
@@ -169,16 +172,18 @@ function handle_the_messages() {
           $tmp_trans_amount = number_format($amount, 2);
           $tmp_crm_amount = number_format($crm_amount, 2);
           if ($tmp_crm_amount <> $tmp_trans_amount) {
-            $message_valid_to_process = FALSE;
+            $message_invalid_reason = "amouts differ: $tmp_crm_amount <> $tmp_trans_amount";
           }
         }
         // this is the fancy new way introduced for version 4.3.x or better
         if (strlen($recur_id) > 0) {
           if (strlen($trxn_id) == 0) {
+            CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: skipping message id {$dao->id}, because transaction ID is empty.");
             // trxn_id is empty.
           }
-          elseif ($message_valid_to_process <> TRUE) {
-            // amounts do not match.
+          elseif (!empty($message_invalid_reason)) {
+            // There's a reason not to process this message.
+            CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: skipping message id {$dao->id}, because $message_invalid_reason.");
           }
           else {
             //  print "<h2>Process for contact id: ".$cid." -- Name on Card: ".$card_billingname." -- CRM Name: ".$crm_contact_name." crm_recur_id: ".$recur_id."</h2>";
@@ -189,9 +194,10 @@ function handle_the_messages() {
             $rec_count++;
           }
         }
-//        else {
-        // print "<br>Error: Could not find crm_recur_id for x_subscription_id: ".$processor_subscription_id;
-//        }
+        else {
+          CRM_Core_Error::debug_log_message("processnewmessages: In FIRST PASS for $messages_table_name: skipping message id {$dao->id}, because \$recur_id length !> 0.");
+        }
+
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
         $sql = "
           UPDATE $messages_table_name
