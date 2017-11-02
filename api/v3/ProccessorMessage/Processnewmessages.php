@@ -1244,7 +1244,7 @@ function _processnewmessages_messages_with_existing_contributions($messages_tabl
         WHERE
           msgs.processed IS NULL
           AND msgs.message_date > %2
-          AND length(msgs.txn_id) > ''
+          AND length(msgs.txn_id)
           AND msgs.txn_id = ctrb.trxn_id
       ";
       break;
@@ -1257,7 +1257,7 @@ function _processnewmessages_messages_with_existing_contributions($messages_tabl
         WHERE
           msgs.processed IS NULL
           AND msgs.message_date > %2
-          AND length(msgs.x_trans_id) > ''
+          AND length(msgs.x_trans_id)
           AND msgs.x_trans_id = ctrb.trxn_id
       ";
       break;
