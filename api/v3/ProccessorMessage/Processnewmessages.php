@@ -337,6 +337,8 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
           //   print "<br>failed transaction";
           $contribution_status_id = "4"; // CiviCRM Failed status
           $tmp_source = "automated record-" . $response_code . "-" . $response_reason_code . "-" . $response_reason_text . " ($trans_description)";
+          // Status may now be very long. Trim to 255 with ellipsis.
+          $tmp_source = mb_strimwidth($tmp_source, 0, 255, '...');
         }
 
         $tmp_payment_instrument_id = "1"; // assume credit card for now
