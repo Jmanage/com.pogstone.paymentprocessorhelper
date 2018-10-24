@@ -1,28 +1,29 @@
 <?php
+
 /*
- +--------------------------------------------------------------------+
- | CiviCRM version 4.7                                                |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2017                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
- |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
- +--------------------------------------------------------------------+
+  +--------------------------------------------------------------------+
+  | CiviCRM version 4.7                                                |
+  +--------------------------------------------------------------------+
+  | Copyright CiviCRM LLC (c) 2004-2017                                |
+  +--------------------------------------------------------------------+
+  | This file is a part of CiviCRM.                                    |
+  |                                                                    |
+  | CiviCRM is free software; you can copy, modify, and distribute it  |
+  | under the terms of the GNU Affero General Public License           |
+  | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
+  |                                                                    |
+  | CiviCRM is distributed in the hope that it will be useful, but     |
+  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
+  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
+  | See the GNU Affero General Public License for more details.        |
+  |                                                                    |
+  | You should have received a copy of the GNU Affero General Public   |
+  | License and the CiviCRM Licensing Exception along                  |
+  | with this program; if not, contact CiviCRM LLC                     |
+  | at info[AT]civicrm[DOT]org. If you have questions about the        |
+  | GNU Affero General Public License or the licensing of CiviCRM,     |
+  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+  +--------------------------------------------------------------------+
  */
 
 /**
@@ -145,9 +146,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
    */
   public function retrieve($name, $type, $location = 'POST', $abort = TRUE) {
     $value = CRM_Utils_Type::validate(
-      CRM_Utils_Array::value($name, $this->_inputParameters),
-      $type,
-      FALSE
+        CRM_Utils_Array::value($name, $this->_inputParameters), $type, FALSE
     );
     if ($abort && $value === NULL) {
       throw new CRM_Core_Exception("Could not find an entry for $name in $location");
@@ -194,19 +193,6 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
 
     $sendNotification = FALSE;
     $subscriptionPaymentStatus = NULL;
-    //List of Transaction Type
-    /*
-    recurring_payment_profile_created          RP Profile Created
-    recurring_payment           RP Successful Payment
-    recurring_payment_failed                               RP Failed Payment
-    recurring_payment_profile_cancel           RP Profile Cancelled
-    recurring_payment_expired         RP Profile Expired
-    recurring_payment_skipped        RP Profile Skipped
-    recurring_payment_outstanding_payment      RP Successful Outstanding Payment
-    recurring_payment_outstanding_payment_failed          RP Failed Outstanding Payment
-    recurring_payment_suspended        RP Profile Suspended
-    recurring_payment_suspended_due_to_max_failed_payment  RP Profile Suspended due to Max Failed Payment
-     */
 
     //set transaction type
     $txnType = $this->retrieve('txn_type', 'String');
@@ -216,10 +202,9 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     switch ($txnType) {
       case 'recurring_payment_profile_created':
         if (in_array($recur->contribution_status_id, array(
-              array_search('Pending', $contributionStatuses),
-              array_search('In Progress', $contributionStatuses),
-            ))
-          && !empty($recur->processor_id)
+            array_search('Pending', $contributionStatuses),
+            array_search('In Progress', $contributionStatuses),
+          )) && !empty($recur->processor_id)
         ) {
           echo "already handled";
           return FALSE;
@@ -282,11 +267,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
         $autoRenewMembership = TRUE;
       }
       //send recurring Notification email for user
-      CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus,
-        $ids['contact'],
-        $ids['contributionPage'],
-        $recur,
-        $autoRenewMembership
+      CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus, $ids['contact'], $ids['contributionPage'], $recur, $autoRenewMembership
       );
     }
 
@@ -319,8 +300,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     // CRM-13737 - am not aware of any reason why payment_date would not be set - this if is a belt & braces
     $objects['contribution']->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
 
-    $this->single($input, $ids, $objects,
-      TRUE, $first
+    $this->single($input, $ids, $objects, TRUE, $first
     );
   }
 
@@ -397,16 +377,14 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     // processor id & the handleNotification function (which should call the completetransaction api & by-pass this
     // entirely). The only thing the IPN class should really do is extract data from the request, validate it
     // & call completetransaction or call fail? (which may not exist yet).
-    $paymentProcessorTypeID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType',
-      'PayPal', 'id', 'name'
+    $paymentProcessorTypeID = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_PaymentProcessorType', 'PayPal', 'id', 'name'
     );
     return (int) civicrm_api3('PaymentProcessor', 'getvalue', array(
-      'is_test' => 0,
-      'options' => array('limit' => 1),
-      'payment_processor_type_id' => $paymentProcessorTypeID,
-      'return' => 'id',
+        'is_test' => 0,
+        'options' => array('limit' => 1),
+        'payment_processor_type_id' => $paymentProcessorTypeID,
+        'return' => 'id',
     ));
-
   }
 
   /**
@@ -417,12 +395,12 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
    * @return bool
    */
   public function main() {
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Start '. __FUNCTION__);
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Start ' . __FUNCTION__);
     CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: GET', $_GET, TRUE, TRUE);
     CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: POST', $_POST, TRUE, TRUE);
     if ($this->_isPaymentExpress) {
       $this->handlePaymentExpress();
-      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
       return FALSE;
     }
 
@@ -480,7 +458,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $paymentProcessorID = self::getPayPalPaymentProcessorID();
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
-      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
       return FALSE;
     }
 
@@ -495,19 +473,19 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         if ($objects['contribution']->contribution_status_id == 1) {
           $first = FALSE;
         }
-        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
+        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
         return $this->recur($input, $ids, $objects, $first);
       }
       else {
-        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
+        CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
         return $this->single($input, $ids, $objects, FALSE, FALSE);
       }
     }
     else {
-      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line '. __LINE__ .': '. __FUNCTION__);
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
       return $this->single($input, $ids, $objects, FALSE, FALSE);
     }
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End: '. __FUNCTION__);
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End: ' . __FUNCTION__);
   }
 
   /**
@@ -582,9 +560,9 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     }
 
     $contributionRecur = civicrm_api3('contribution_recur', 'getsingle', array(
-        'return' => 'contact_id, id',
-        'invoice_id' => $input['invoice'],
-      ));
+      'return' => 'contact_id, id',
+      'invoice_id' => $input['invoice'],
+    ));
     $ids['contact'] = $contributionRecur['contact_id'];
     $ids['contributionRecur'] = $contributionRecur['id'];
     $result = civicrm_api3('contribution', 'getsingle', array('invoice_id' => $input['invoice']));
@@ -600,7 +578,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
           $ids['contribution'],
           'Integer',
         ),
-      ));
+    ));
     // only handle component at this stage - not terribly sure how a recurring event payment would arise
     // & suspec main function may be a victom of copy & paste
     // membership would be an easy add - but not relevant to my customer...
@@ -620,8 +598,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
    * @return bool|void
    */
   public function transactionExists($trxn_id) {
-    if (CRM_Core_DAO::singleValueQuery("SELECT count(*) FROM civicrm_contribution WHERE trxn_id = %1",
-      array(
+    if (CRM_Core_DAO::singleValueQuery("SELECT count(*) FROM civicrm_contribution WHERE trxn_id = %1", array(
         1 => array($trxn_id, 'String'),
       ))
     ) {
@@ -630,9 +607,8 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
   }
 
   public function pogstone_log_details() {
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Begin '. __FUNCTION__);
-    // Pogstone added:   
-
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Begin ' . __FUNCTION__);
+    // Pogstone added:
     // Flag if this is an ARB transaction. Set to false by default.
     $arb = FALSE;
 
@@ -647,94 +623,86 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     // Get all the URL parameters/fields into variables.
 
     /*  Sample message:
-      Name: amount  ---  Value: 101.00 ----------
-      Name: initial_payment_amount  ---  Value: 0.00 ----------
-      Name: profile_status  ---  Value: Active ----------
-      Name: payer_id  ---  Value: GZTBAAAA22XJA ----------
-      Name: product_type  ---  Value: 1 ----------
-      Name: ipn_track_id  ---  Value: cd1b4e8d492c3 ----------
-      Name: outstanding_balance  ---  Value: 0.00 ----------
-      Name: shipping  ---  Value: 0.00 ----------
-      Name: charset  ---  Value: windows-1252 ----------
-      Name: period_type  ---  Value:  Regular ----------
-      Name: currency_code  ---  Value: USD ----------
-      Name: verify_sign  ---  Value: An5ns1Kso7MWUdW4ErQKJJJ4qi4-ARvSxrjLPbNkKDXdDhVUrIPcQaci ----------
-      Name: payment_cycle  ---  Value: Monthly ----------
-      Name: txn_type  ---  Value: recurring_payment_skipped ----------
-      Name: payer_status  ---  Value: unverified ----------
-      Name: first_name  ---  Value: Joe ----------
-      Name: product_name  ---  Value: : 101 Per 1 month ----------
-      Name: amount_per_cycle  ---  Value: 101.00 ----------
-      Name: rp_invoice_id  ---  Value: i=7421f5f4bf2ee2e64b268e41afa8815f&m=contribute&c=16204&r=30&b=2655&p= ----------
-      Name: last_name  ---  Value: Kaplan ----------
-      Name: time_created  ---  Value: 07:50:16 Sep 27, 2012 PDT ----------
-      Name: resend  ---  Value: true ----------
-      Name: notify_version  ---  Value: 3.7 ----------
-      Name: recurring_payment_id  ---  Value: I-3asdaksdhGN4D5K ----------
-      Name: receiver_email  ---  Value: director@mygroup.org ----------
-      Name: next_payment_date  ---  Value: 02:00:00 Jan 06, 2013 PST ----------
-      Name: tax  ---  Value: 0.00 ----------
-      Name: residence_country  ---  Value: US ----------
-      Name: payer_email   --- Value: kaplan@aol.com --------------
+    Name: amount  ---  Value: 101.00 ----------
+    Name: initial_payment_amount  ---  Value: 0.00 ----------
+    Name: profile_status  ---  Value: Active ----------
+    Name: payer_id  ---  Value: GZTBAAAA22XJA ----------
+    Name: product_type  ---  Value: 1 ----------
+    Name: ipn_track_id  ---  Value: cd1b4e8d492c3 ----------
+    Name: outstanding_balance  ---  Value: 0.00 ----------
+    Name: shipping  ---  Value: 0.00 ----------
+    Name: charset  ---  Value: windows-1252 ----------
+    Name: period_type  ---  Value:  Regular ----------
+    Name: currency_code  ---  Value: USD ----------
+    Name: verify_sign  ---  Value: An5ns1Kso7MWUdW4ErQKJJJ4qi4-ARvSxrjLPbNkKDXdDhVUrIPcQaci ----------
+    Name: payment_cycle  ---  Value: Monthly ----------
+    Name: txn_type  ---  Value: recurring_payment_skipped ----------
+    Name: payer_status  ---  Value: unverified ----------
+    Name: first_name  ---  Value: Joe ----------
+    Name: product_name  ---  Value: : 101 Per 1 month ----------
+    Name: amount_per_cycle  ---  Value: 101.00 ----------
+    Name: rp_invoice_id  ---  Value: i=7421f5f4bf2ee2e64b268e41afa8815f&m=contribute&c=16204&r=30&b=2655&p= ----------
+    Name: last_name  ---  Value: Kaplan ----------
+    Name: time_created  ---  Value: 07:50:16 Sep 27, 2012 PDT ----------
+    Name: resend  ---  Value: true ----------
+    Name: notify_version  ---  Value: 3.7 ----------
+    Name: recurring_payment_id  ---  Value: I-3asdaksdhGN4D5K ----------
+    Name: receiver_email  ---  Value: director@mygroup.org ----------
+    Name: next_payment_date  ---  Value: 02:00:00 Jan 06, 2013 PST ----------
+    Name: tax  ---  Value: 0.00 ----------
+    Name: residence_country  ---  Value: US ----------
+    Name: payer_email   --- Value: kaplan@aol.com --------------
 
-      -------------------------------------------------------------------------------------------
-      --------------------------------------------------------------------------------------------
-      Another sample message:
+    -------------------------------------------------------------------------------------------
+    --------------------------------------------------------------------------------------------
+    Another sample message:
 
-      Name: amount  ---  Value: 500.00 ----------
-      Name: txn_id  ---  Value: 3BR37624H48498902 ----------
-      Name: recurring_payment_id  ---  Value: I-TVN3U312ANA6 ----------
-      Name: payment_date  ---  Value: 06:12:14 Jul 01, 2013 PDT ----------
-      Name: payment_status  ---  Value: Completed ----------
-      Name: mc_gross  ---  Value: 500.00 ----------
-      Name: mc_fee  ---  Value: 11.30 ----------
-      Name: first_name  ---  Value: Eyal ----------
-      Name: last_name  ---  Value: Yechezkell ----------
-      Name: payer_email  ---  Value: eyal@snackablemedia.com ----------
-      Name: txn_type  ---  Value: recurring_payment ----------
-      Name: period_type  ---  Value:  Regular ----------
-      Name: payment_fee  ---  Value: 11.30 ----------
-      Name: payment_gross  ---  Value: 500.00 ----------
-      Name: currency_code  ---  Value: USD ----------
-      Name: mc_currency  ---  Value: USD ----------
-      Name: outstanding_balance  ---  Value: 0.00 ----------
-      Name: next_payment_date  ---  Value: 03:00:00 Aug 01, 2013 PDT ----------
-      Name: protection_eligibility  ---  Value: Ineligible ----------
-      Name: payment_cycle  ---  Value: Monthly ----------
-      Name: tax  ---  Value: 0.00 ----------
-      Name: payer_id  ---  Value: VKZF3PBWH9S7N ----------
-      Name: product_name  ---  Value: : 500 Per 1 month ----------
-      Name: charset  ---  Value: windows-1252 ----------
-      Name: rp_invoice_id  ---  Value: i=061d7c81ba600d0e22c78972d7d085ea&m=contribute&c=30965&r=44&b=3217&p= ----------
-      Name: notify_version  ---  Value: 3.7 ----------
-      Name: amount_per_cycle  ---  Value: 500.00 ----------
-      Name: payer_status  ---  Value: unverified ----------
-      Name: business  ---  Value: director@gjarn.org ----------
-      Name: verify_sign  ---  Value: AF667Peh-E4CB3mj8gEMghDit1bpA0kvK7yBIFvIJYhZBeNyWJbcWxfn ----------
-      Name: initial_payment_amount  ---  Value: 0.00 ----------
-      Name: profile_status  ---  Value: Active ----------
-      Name: payment_type  ---  Value: instant ----------
-      Name: receiver_email  ---  Value: director@gjarn.org ----------
-      Name: receiver_id  ---  Value: GZHV3YNKLZJEQ ----------
-      Name: residence_country  ---  Value: US ----------
-      Name: receipt_id  ---  Value: 1327-5802-0001-2198 ----------
-      Name: transaction_subject  ---  Value:  ----------
-      Name: shipping  ---  Value: 0.00 ----------
-      Name: product_type  ---  Value: 1 ----------
-      Name: time_created  ---  Value: 06:16:35 May 01, 2013 PDT ----------
-      Name: ipn_track_id  ---  Value: 97970d3f5c07a ----------
-      -----------------------------------------------------------
-
-     */
-
-    /*
-      // Check for refunds. For refunds, record the amount as a negative number.
-      if($x_type == 'credit'){
-      $amount_as_num = (float) $x_amount;
-      $x_amount = 0 - $amount_as_num;
-      }
+    Name: amount  ---  Value: 500.00 ----------
+    Name: txn_id  ---  Value: 3BR37624H48498902 ----------
+    Name: recurring_payment_id  ---  Value: I-TVN3U312ANA6 ----------
+    Name: payment_date  ---  Value: 06:12:14 Jul 01, 2013 PDT ----------
+    Name: payment_status  ---  Value: Completed ----------
+    Name: mc_gross  ---  Value: 500.00 ----------
+    Name: mc_fee  ---  Value: 11.30 ----------
+    Name: first_name  ---  Value: Eyal ----------
+    Name: last_name  ---  Value: Yechezkell ----------
+    Name: payer_email  ---  Value: eyal@snackablemedia.com ----------
+    Name: txn_type  ---  Value: recurring_payment ----------
+    Name: period_type  ---  Value:  Regular ----------
+    Name: payment_fee  ---  Value: 11.30 ----------
+    Name: payment_gross  ---  Value: 500.00 ----------
+    Name: currency_code  ---  Value: USD ----------
+    Name: mc_currency  ---  Value: USD ----------
+    Name: outstanding_balance  ---  Value: 0.00 ----------
+    Name: next_payment_date  ---  Value: 03:00:00 Aug 01, 2013 PDT ----------
+    Name: protection_eligibility  ---  Value: Ineligible ----------
+    Name: payment_cycle  ---  Value: Monthly ----------
+    Name: tax  ---  Value: 0.00 ----------
+    Name: payer_id  ---  Value: VKZF3PBWH9S7N ----------
+    Name: product_name  ---  Value: : 500 Per 1 month ----------
+    Name: charset  ---  Value: windows-1252 ----------
+    Name: rp_invoice_id  ---  Value: i=061d7c81ba600d0e22c78972d7d085ea&m=contribute&c=30965&r=44&b=3217&p= ----------
+    Name: notify_version  ---  Value: 3.7 ----------
+    Name: amount_per_cycle  ---  Value: 500.00 ----------
+    Name: payer_status  ---  Value: unverified ----------
+    Name: business  ---  Value: director@gjarn.org ----------
+    Name: verify_sign  ---  Value: AF667Peh-E4CB3mj8gEMghDit1bpA0kvK7yBIFvIJYhZBeNyWJbcWxfn ----------
+    Name: initial_payment_amount  ---  Value: 0.00 ----------
+    Name: profile_status  ---  Value: Active ----------
+    Name: payment_type  ---  Value: instant ----------
+    Name: receiver_email  ---  Value: director@gjarn.org ----------
+    Name: receiver_id  ---  Value: GZHV3YNKLZJEQ ----------
+    Name: residence_country  ---  Value: US ----------
+    Name: receipt_id  ---  Value: 1327-5802-0001-2198 ----------
+    Name: transaction_subject  ---  Value:  ----------
+    Name: shipping  ---  Value: 0.00 ----------
+    Name: product_type  ---  Value: 1 ----------
+    Name: time_created  ---  Value: 06:16:35 May 01, 2013 PDT ----------
+    Name: ipn_track_id  ---  Value: 97970d3f5c07a ----------
+    -----------------------------------------------------------
 
      */
+
     CRM_Core_Error::debug_var('paymentprocessorhelper: PayPalProIPN: ' . __FUNCTION__ . ': Fields', $fields);
 
     $sql = "INSERT INTO pogstone_paypal_messages (`rec_type`, `message_date`, amount, txn_id, recurring_payment_id,
@@ -760,10 +728,10 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     		 '" . $fields['shipping'] . "',
     		 '" . $fields['product_type'] . "', '" . $fields['time_created'] . "', '" . $fields['ipn_track_id'] . "');";
 
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: '. __FUNCTION__ . ': Log using SQL: '. $sql);
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: ' . __FUNCTION__ . ': Log using SQL: ' . $sql);
     $dao = CRM_Core_DAO::executeQuery($sql);
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: '. __FUNCTION__ . ': Log SQL result: '. (!is_a($dao, 'DB_Error')));
-    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End '. __FUNCTION__);
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: ' . __FUNCTION__ . ': Log SQL result: ' . (!is_a($dao, 'DB_Error')));
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: End ' . __FUNCTION__);
   }
 
 }
