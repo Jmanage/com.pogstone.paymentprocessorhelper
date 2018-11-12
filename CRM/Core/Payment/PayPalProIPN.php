@@ -542,6 +542,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
    * only contribute is handled
    */
   public function handlePaymentExpress() {
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Start '. __FUNCTION__);
     //@todo - loads of copy & paste / code duplication but as this not going into core need to try to
     // keep discreet
     // also note that a lot of the complexity above could be removed if we used
@@ -551,11 +552,13 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $isFirst = FALSE;
     $input['txnType'] = $this->retrieve('txn_type', 'String');
     if ($input['txnType'] != 'recurring_payment') {
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Exception in line ' . __LINE__ . ': ' . __FUNCTION__);
       throw new CRM_Core_Exception('Paypal IPNS not handled other than recurring_payments');
     }
     $input['invoice'] = self::getValue('i', FALSE);
     $this->getInput($input, $ids);
     if ($this->transactionExists($input['trxn_id'])) {
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Exception in line ' . __LINE__ . ': ' . __FUNCTION__);
       throw new CRM_Core_Exception('This transaction has already been processed');
     }
 
@@ -587,8 +590,10 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $paymentProcessorID = self::getPayPalPaymentProcessorID();
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+      CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Exception in line ' . __LINE__ . ': ' . __FUNCTION__);
       throw new CRM_Core_Exception('Data did not validate');
     }
+    CRM_Core_Error::debug_log_message('paymentprocessorhelper: PayPalProIPN: Return in line ' . __LINE__ . ': ' . __FUNCTION__);
     return $this->recur($input, $ids, $objects, $isFirst);
   }
 
