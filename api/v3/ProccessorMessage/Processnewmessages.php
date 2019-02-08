@@ -367,23 +367,35 @@ function handle_messges_with_no_contrib($cur_type, $timestamp) {
             );
           }
           else {
-
-            $contrib_params = array(
-              'version' => 3,
-              'sequential' => 1,
-              'financial_type_id' => $tmp_financial_type_id,
-              'payment_instrument_id' => $tmp_payment_instrument_id,
-              'receive_date' => $message_date,
-              'contribution_status_id' => $contribution_status_id,
-              'contribution_source' => $tmp_source,
-              'total_amount' => $message_amount,
-              'contact_id' => $contact_id_tmp,
-              'trxn_id' => $trans_id,
-            );
+            // If more than or equal to 1 line items exist for this event registration
+            // Do nothing
+            $eventLineCount = CRM_Core_DAO::singleValueQuery("
+              SELECT COUNT(li.id)
+              FROM civicrm_line_item li
+              LEFT JOIN civicrm_entity_financial_trxn eft ON eft.entity_id = li.contribution_id
+              LEFT JOIN civicrm_financial_trxn ft ON ft.id = eft.financial_trxn_id
+              WHERE ft.trxn_id = '$trans_id' AND li.entity_table = 'civicrm_participant'
+            ");
+            if($eventLineCount >= 1) {
+              CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: No new contribution created for event selection change from message id {$dao->id} in $messages_table_name.");
+            }
+            else {
+              $contrib_params = array(
+                'version' => 3,
+                'sequential' => 1,
+                'financial_type_id' => $tmp_financial_type_id,
+                'payment_instrument_id' => $tmp_payment_instrument_id,
+                'receive_date' => $message_date,
+                'contribution_status_id' => $contribution_status_id,
+                'contribution_source' => $tmp_source,
+                'total_amount' => $message_amount,
+                'contact_id' => $contact_id_tmp,
+                'trxn_id' => $trans_id,
+              );
+              $result = civicrm_api3('Contribution', 'create', $contrib_params);
+              CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: created contribution {$result['id']} from message id {$dao->id} in $messages_table_name.");
+            }
           }
-
-          $result = civicrm_api3('Contribution', 'create', $contrib_params);
-          CRM_Core_Error::debug_log_message("processnewmessages: In THIRD PASS: created contribution {$result['id']} from message id {$dao->id} in $messages_table_name.");
         }
 
         // Mark message as processed. Reference: https://pogstone.zendesk.com/agent/tickets/11083
